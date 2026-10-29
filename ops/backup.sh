@@ -33,7 +33,7 @@ tar -C "$ROOT/current" -czf "$PART/source.tar.gz" .
 "$COMPOSE" exec -T db sh -c 'pg_restore --list' < "$PART/database.dump" > "$PART/database.contents"
 tar -tzf "$PART/uploads.tar.gz" > "$PART/uploads.contents"
 (cd "$PART" && sha256sum database.dump uploads.tar.gz uploads.sha256 runtime.env source.tar.gz RELEASE > SHA256SUMS)
-"$COMPOSE" start app
+"$COMPOSE" start --wait --wait-timeout 120 app
 RESTART=0
 mv "$PART" "$DEST/$STAMP"
 # Only complete, date-named backups are subject to retention.
