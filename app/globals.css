@@ -241,3 +241,39 @@
     gap: 0;
   }
 }
+
+/* Auto-detect writing direction without moving free-text fields away from
+ * the interface's alignment. Language-specific category fields are separate. */
+.request-field {
+  text-align: left;
+}
+html[dir="rtl"] .request-field {
+  text-align: right;
+}
+
+.request-field::placeholder {
+  text-align: inherit;
+}
+/* A leading icon follows the UI direction, even when the input value is LTR. */
+.request-search-field {
+  padding-left: 2.5rem;
+  padding-right: 0.75rem;
+}
+html[dir="rtl"] .request-search-field {
+  padding-left: 0.75rem;
+  padding-right: 2.5rem;
+}
+
+/* Keep native date segments readable, but align their content and picker with RTL. */
+html[dir="rtl"] .request-date-field {
+  text-align: right;
+}
+html[dir="rtl"] .request-date-field::-webkit-datetime-edit {
+  text-align: right;
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+html[dir="rtl"] .request-date-field::-webkit-calendar-picker-indicator {
+  order: -1;
+  margin: 0 0.5rem 0 0;
+}

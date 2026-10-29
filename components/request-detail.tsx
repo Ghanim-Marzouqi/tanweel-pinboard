@@ -141,11 +141,15 @@ export function RequestDetail({
         className="inline-flex items-center gap-2 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--accent-strong)]"
       >
         <ArrowLeft size={16} aria-hidden className="shrink-0 rtl:rotate-180" />
-        {r.project.name} / {t('requests')}
+        <span>
+          <bdi>{r.project.name}</bdi> / {t('requests')}
+        </span>
       </Link>
       <header className="border-b border-[color:var(--border)] pb-6">
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <span className="font-mono text-sm text-[color:var(--text-faint)]">#{r.number}</span>
+          <span className="font-mono text-sm text-[color:var(--text-faint)]">
+            <bdi>#{r.number}</bdi>
+          </span>
           <RequestStatusBadge status={r.status} label={t(`statuses.${r.status}`)} />
           <span className="text-sm text-[color:var(--text-muted)]">
             {locale === 'ar' ? r.category.nameAr : r.category.nameEn}
@@ -186,15 +190,15 @@ export function RequestDetail({
                 <FileText size={17} aria-hidden className="text-[color:var(--text-faint)]" />
                 {t('description')}
               </h2>
-              <p dir="auto" className="request-copy mt-3 whitespace-pre-wrap break-words leading-relaxed">
-                {r.description}
+              <p className="text-start mt-3 whitespace-pre-wrap break-words leading-relaxed">
+                <bdi className="request-copy">{r.description}</bdi>
               </p>
             </div>
             {r.suggestions && (
               <div>
                 <h2 className="text-sm font-semibold">{t('suggestionsHeading')}</h2>
-                <p dir="auto" className="request-copy mt-3 whitespace-pre-wrap break-words leading-relaxed">
-                  {r.suggestions}
+                <p className="text-start mt-3 whitespace-pre-wrap break-words leading-relaxed">
+                  <bdi className="request-copy">{r.suggestions}</bdi>
                 </p>
               </div>
             )}
@@ -205,14 +209,16 @@ export function RequestDetail({
               </span>
               {r.shift && (
                 <span>
-                  {t('shiftLabel')}: {r.shift}
+                  {t('shiftLabel')}: <bdi>{r.shift}</bdi>
                 </span>
               )}
             </div>
             {r.closureReason && (
               <div className="rounded-xl border border-[color:var(--border)] p-3">
                 <h2 className="font-semibold">{t('closureReason')}</h2>
-                <p className="whitespace-pre-wrap break-words">{r.closureReason}</p>
+                <p className="whitespace-pre-wrap break-words">
+                  <bdi className="request-copy">{r.closureReason}</bdi>
+                </p>
               </div>
             )}
           </section>
@@ -255,9 +261,9 @@ export function RequestDetail({
                     href={`/api/requests/${r.id}/attachments/${a.id}/download`}
                     className="min-w-0 break-all text-[color:var(--accent)]"
                   >
-                    {a.fileName}{' '}
+                    <bdi>{a.fileName}</bdi>{' '}
                     <span className="text-sm text-[color:var(--text-muted)]">
-                      ({Math.ceil(a.sizeBytes / 1024)} KB)
+                      <bdi dir="ltr">({Math.ceil(a.sizeBytes / 1024)} KB)</bdi>
                     </span>
                   </a>
                   {writable && (isAdmin || a.uploadedById === userId) && (
@@ -292,14 +298,13 @@ export function RequestDetail({
                     </bdi>
                   </div>
                   <p
-                    dir="auto"
                     className={
                       a.kind === 'comment'
                         ? 'mt-2 rounded-xl bg-[color:var(--surface-muted)] p-3 text-sm leading-relaxed whitespace-pre-wrap break-words'
                         : 'mt-1 whitespace-pre-wrap break-words text-xs text-[color:var(--text-muted)]'
                     }
                   >
-                    {activity(a)}
+                    <bdi className="request-copy">{activity(a)}</bdi>
                   </p>
                 </li>
               ))}
@@ -317,12 +322,14 @@ export function RequestDetail({
                 <label className="block space-y-2">
                   <span>{t('comment')}</span>
                   <Textarea
+                    dir="auto"
                     name="body"
                     required
                     maxLength={5000}
                     rows={3}
                     placeholder={t('commentPlaceholder')}
                     disabled={pending}
+                    className="request-field"
                   />
                 </label>
                 <Button type="submit" disabled={pending}>
@@ -365,7 +372,14 @@ export function RequestDetail({
                 {status === 'Closed' && (
                   <label className="block space-y-2">
                     <span>{t('closureReason')}</span>
-                    <Textarea name="closureReason" required maxLength={2000} defaultValue={r.closureReason} />
+                    <Textarea
+                      dir="auto"
+                      name="closureReason"
+                      required
+                      maxLength={2000}
+                      defaultValue={r.closureReason}
+                      className="request-field"
+                    />
                   </label>
                 )}
                 <Button type="submit" disabled={pending}>
@@ -388,7 +402,7 @@ export function RequestDetail({
                     href={`/tasks/${task.id}`}
                     className="break-words text-sm font-medium hover:text-[color:var(--accent-strong)]"
                   >
-                    {task.title}
+                    <bdi className="request-copy">{task.title}</bdi>
                   </Link>
                   <p className="mt-2 text-xs text-[color:var(--text-muted)]">
                     <StatusBadge status={task.status as TaskStatus} />
@@ -463,7 +477,14 @@ export function RequestDetail({
             >
               <label className="block space-y-2">
                 <span className="text-sm">{t('searchTasks')}</span>
-                <Input autoFocus maxLength={200} value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Input
+                  dir="auto"
+                  autoFocus
+                  maxLength={200}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="request-field"
+                />
               </label>
               <Button type="submit" variant="secondary" disabled={pending}>
                 {t('searchButton')}
@@ -526,15 +547,25 @@ export function RequestDetail({
           >
             <label className="block space-y-2">
               <span>{t('taskTitle')}</span>
-              <Input autoFocus name="title" required maxLength={200} defaultValue={r.title} />
+              <Input
+                dir="auto"
+                autoFocus
+                name="title"
+                required
+                maxLength={200}
+                defaultValue={r.title}
+                className="request-field"
+              />
             </label>
             <label className="block space-y-2">
               <span>{t('taskDescription')}</span>
               <Textarea
+                dir="auto"
                 name="description"
                 rows={5}
                 maxLength={20000}
                 defaultValue={[r.description, r.suggestions].filter(Boolean).join('\n\n')}
+                className="request-field"
               />
             </label>
             <label className="block space-y-2">
@@ -560,7 +591,7 @@ export function RequestDetail({
             </label>
             <label className="block space-y-2">
               <span>{t('dueDate')}</span>
-              <Input type="date" name="dueDate" />
+              <Input type="date" name="dueDate" className="request-date-field" />
             </label>
             <Button type="submit" disabled={pending}>
               {t('createAndLink')}

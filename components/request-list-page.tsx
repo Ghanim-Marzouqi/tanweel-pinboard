@@ -140,7 +140,9 @@ export async function RequestListPage({
                     className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-[color:var(--accent-soft)]"
                   >
                     <Folder size={15} className="shrink-0" aria-hidden />
-                    <span className="break-words">{p.name}</span>
+                    <span className="break-words">
+                      <bdi>{p.name}</bdi>
+                    </span>
                   </Link>
                 ))}
               </div>
@@ -222,7 +224,8 @@ export async function RequestListPage({
               className="pointer-events-none absolute start-3 top-3.5 text-[color:var(--text-faint)]"
             />
             <Input
-              className="ps-10"
+              dir="auto"
+              className="request-field request-search-field"
               name="q"
               defaultValue={q}
               placeholder={t('search')}
@@ -282,13 +285,17 @@ export async function RequestListPage({
             >
               <div className="min-w-0">
                 <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--text-muted)]">
-                  <span className="font-mono text-[color:var(--text-faint)]">#{r.number}</span>
+                  <span className="font-mono text-[color:var(--text-faint)]">
+                    <bdi>#{r.number}</bdi>
+                  </span>
                   <span className="h-3 w-px bg-[color:var(--border-strong)]" aria-hidden />
                   <span>{locale === 'ar' ? r.category.nameAr : r.category.nameEn}</span>
                   {!project && (
                     <>
                       <span aria-hidden>·</span>
-                      <span className="truncate">{r.project.name}</span>
+                      <span className="truncate">
+                        <bdi>{r.project.name}</bdi>
+                      </span>
                     </>
                   )}
                 </div>
@@ -297,7 +304,7 @@ export async function RequestListPage({
                 </h2>
                 <p
                   dir="auto"
-                  className="request-copy mt-1.5 line-clamp-1 break-words text-sm text-[color:var(--text-muted)]"
+                  className="request-copy text-left rtl:text-right mt-1.5 line-clamp-1 break-words text-sm text-[color:var(--text-muted)]"
                 >
                   {r.description}
                 </p>
@@ -314,7 +321,9 @@ export async function RequestListPage({
                 </div>
               </div>
               <div className="hidden min-w-0 text-xs lg:block">
-                <p className="truncate font-medium">{r.createdBy.name}</p>
+                <p className="truncate font-medium">
+                  <bdi>{r.createdBy.name}</bdi>
+                </p>
                 <p className="mt-1.5 text-[color:var(--text-muted)]">
                   <FormattedDate timeZone="Asia/Muscat" iso={r.createdAt.toISOString()} />
                 </p>

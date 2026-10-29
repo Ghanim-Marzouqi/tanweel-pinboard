@@ -108,7 +108,9 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
                   <Tags size={16} aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words text-sm font-medium">{c.nameEn}</span>
+                  <span className="block break-words text-sm font-medium">
+                    <bdi>{c.nameEn}</bdi>
+                  </span>
                   <span className="mt-0.5 block break-words text-sm text-[color:var(--text-muted)]">
                     <bdi>{c.nameAr}</bdi>
                   </span>

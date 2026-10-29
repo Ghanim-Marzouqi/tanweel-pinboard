@@ -54,7 +54,9 @@ export function RequestCreate({
         className="inline-flex items-center gap-2 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--accent-strong)]"
       >
         <ArrowLeft size={16} aria-hidden className="rtl:rotate-180" />
-        {project.name} / {t('requests')}
+        <span>
+          <bdi>{project.name}</bdi> / {t('requests')}
+        </span>
       </Link>
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{t('new')}</h1>
@@ -72,7 +74,14 @@ export function RequestCreate({
             </div>
             <label className="block space-y-2">
               <span className="text-sm font-medium">{t('title')}</span>
-              <Input name="title" required maxLength={200} placeholder={t('titlePlaceholder')} dir="auto" />
+              <Input
+                dir="auto"
+                name="title"
+                required
+                maxLength={200}
+                placeholder={t('titlePlaceholder')}
+                className="request-field"
+              />
             </label>
             <label className="block space-y-2">
               <span className="text-sm font-medium">{t('category')}</span>
@@ -90,12 +99,13 @@ export function RequestCreate({
             <label className="block space-y-2">
               <span className="text-sm font-medium">{t('description')}</span>
               <Textarea
-                name="description"
                 dir="auto"
+                name="description"
                 required
                 rows={6}
                 maxLength={20000}
                 placeholder={t('descriptionPlaceholder')}
+                className="request-field"
               />
             </label>
           </div>
@@ -110,23 +120,31 @@ export function RequestCreate({
                 <Input
                   name="occurredAt"
                   type="datetime-local"
+                  className="request-date-field"
                   required
                   defaultValue={muscatDateTimeInput(new Date(now))}
                 />
               </label>
               <label className="block min-w-0 space-y-2">
                 <span className="text-sm font-medium">{t('shift')}</span>
-                <Input name="shift" maxLength={120} placeholder={t('shiftPlaceholder')} />
+                <Input
+                  dir="auto"
+                  name="shift"
+                  maxLength={120}
+                  placeholder={t('shiftPlaceholder')}
+                  className="request-field"
+                />
               </label>
             </div>
             <label className="block space-y-2">
               <span className="text-sm font-medium">{t('suggestions')}</span>
               <Textarea
-                name="suggestions"
                 dir="auto"
+                name="suggestions"
                 rows={3}
                 maxLength={10000}
                 placeholder={t('suggestionsPlaceholder')}
+                className="request-field"
               />
             </label>
           </div>
@@ -140,12 +158,13 @@ export function RequestCreate({
               </p>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <Link
-                href={`/projects/${project.id}/requests`}
-                className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text)]"
+              <Button
+                variant="secondary"
+                disabled={pending}
+                onClick={() => router.push(`/projects/${project.id}/requests`)}
               >
                 {t('cancel')}
-              </Link>
+              </Button>
               <Button type="submit" disabled={pending}>
                 {pending ? t('saving') : t('submit')}
                 <ArrowRight size={16} aria-hidden className="rtl:rotate-180" />
@@ -163,7 +182,9 @@ export function RequestCreate({
             </span>
             <div className="min-w-0">
               <p className="text-xs text-[color:var(--text-muted)]">{t('reporter')}</p>
-              <p className="mt-1 truncate text-sm font-medium">{reporter}</p>
+              <p className="mt-1 truncate text-sm font-medium">
+                <bdi>{reporter}</bdi>
+              </p>
             </div>
           </div>
           <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
