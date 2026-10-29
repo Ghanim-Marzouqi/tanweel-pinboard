@@ -1,0 +1,152 @@
+{
+  "app": {
+    "brand": "Pinboard",
+    "tagline": "Your team's tasks, pinned in one place.",
+    "logout": "Sign out",
+    "language": "Language",
+    "menu": "Menu"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Use the account your administrator created for you.",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "signIn": "Sign in",
+      "signingIn": "Signing in…",
+      "invalidCredentials": "Incorrect username/email or password, or too many attempts. Try again later.",
+      "heroTitle": "One team.\nClear priorities.",
+      "identifier": "Username or email",
+      "identifierPlaceholder": "e.g. ahmed",
+      "noAccount": "Don't have an account? Ask your administrator to create one."
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "subtitle": "Everything your team is working on",
+    "addNew": "Add task",
+    "back": "Back to tasks",
+    "empty": "No tasks yet. Add your first one to get started.",
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "What needs to be done?",
+      "description": "Description",
+      "descriptionPlaceholder": "Add details, links or context",
+      "status": "Status",
+      "attachments": "Attachments",
+      "createdAt": "Created",
+      "updatedAt": "Updated",
+      "createdBy": "Created by"
+    },
+    "status": {
+      "open": "Open",
+      "inProgress": "In Progress",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "filters": {
+      "status": "Status",
+      "search": "Search title…"
+    },
+    "table": {
+      "attachments": "{count, plural, =0 {No files} =1 {1 file} other {# files}}",
+      "comments": "{count, plural, =0 {No comments} =1 {1 comment} other {# comments}}",
+      "actions": "Actions"
+    },
+    "form": {
+      "createTitle": "New task",
+      "editTitle": "Edit task",
+      "saveCreate": "Create task",
+      "saveEdit": "Save changes",
+      "deleting": "Deleting…",
+      "saving": "Saving…",
+      "creating": "Creating…"
+    },
+    "attachments": {
+      "drop": "Drop files here or click to upload",
+      "hint": "Up to 10 MB per file. Images, PDF, Office documents, CSV, and text.",
+      "uploading": "Uploading {name}…",
+      "remove": "Remove",
+      "download": "Download",
+      "open": "Open"
+    }
+  },
+  "comments": {
+    "title": "Comments",
+    "subtitle": "Discuss this task with your team",
+    "empty": "No comments yet. Start the conversation.",
+    "placeholder": "Write a message…",
+    "send": "Post comment",
+    "sending": "Posting…",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this comment?",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edited": "(edited)",
+    "loginToComment": "Sign in to post a comment.",
+    "loadFailed": "Couldn't load comments.",
+    "saveFailed": "Couldn't save your comment."
+  },
+  "roles": {
+    "admin": "Admin",
+    "member": "Member"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "back": "Back",
+    "upload": "Upload",
+    "download": "Download",
+    "remove": "Remove",
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "tryAgain": "Try again",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "required": "Required",
+    "confirm": "Confirm"
+  },
+  "confirm": {
+    "deleteComment": {
+      "title": "Delete this comment?",
+      "description": "The comment will be permanently removed from the conversation."
+    },
+    "removeAttachment": {
+      "title": "Remove this attachment?",
+      "description": "The file will be deleted from storage immediately."
+    },
+    "deleteTask": {
+      "title": "Delete this task?",
+      "description": "Attachments and comments on this task will also be removed. This can't be undone."
+    }
+  },
+  "toast": {
+    "attachmentUploadFailed": "Upload failed",
+    "attachmentRemoveFailed": "Couldn't remove attachment",
+    "commentSaveFailed": "Couldn't save comment",
+    "commentDeleteFailed": "Couldn't delete comment",
+    "taskCreated": "Task created",
+    "taskSaved": "Changes saved",
+    "taskDeleted": "Task deleted",
+    "taskSaveFailed": "Couldn't save the task",
+    "taskDeleteFailed": "Couldn't delete the task"
+  },
+  "richText": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "bulletList": "Bullet list",
+    "orderedList": "Numbered list",
+    "link": "Link",
+    "linkPrompt": "Paste the URL",
+    "removeLink": "Remove link"
+  }
+}

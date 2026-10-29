@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  member
+}
+
+enum TaskStatus {
+  Open
+  InProgress
+  Resolved
+  Closed
+}
+
+/// Local account. Usernames and emails are stored lower-cased so lookups are
+/// case-insensitive. Users are deactivated rather than deleted, so their
+/// tasks, comments and uploads keep a valid author.
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique @db.VarChar(64)
+  email        String?   @unique @db.VarChar(254)
+  name         String    @db.VarChar(120)
+  passwordHash String    @db.VarChar(255)
+  role         UserRole  @default(member)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tasksCreated Task[]
+  comments     TaskComment[]
+  attachments  TaskAttachment[]
+
+  @@map("users")
+}
+
+model Task {
+  id              String           @id @default(uuid()) @db.Uuid
+  title           String           @db.VarChar(200)
+  descriptionHtml String           @db.Text
+  status          TaskStatus       @default(Open)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  createdById     String           @db.Uuid
+  createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  attachments     TaskAttachment[]
+  comments        TaskComment[]
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([createdById])
+  @@map("tasks")
+}
+
+model TaskAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  taskId       String   @db.Uuid
+  fileName     String   @db.VarChar(255)
+  contentType  String   @db.VarChar(100)
+  sizeBytes    Int
+  storageKey   String   @db.VarChar(512)
+  uploadedAt   DateTime @default(now())
+  uploadedById String   @db.Uuid
+
+  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
+model TaskComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @db.Uuid
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  authorId  String   @db.Uuid
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}

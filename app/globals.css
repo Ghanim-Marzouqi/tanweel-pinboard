@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f8f6;
+  --surface: #ffffff;
+  --surface-muted: #f4f4f1;
+  --border: #e7e5e0;
+  --border-strong: #d6d3cc;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-faint: #8a847d;
+  /* Tanweel purple — hsl(260 89% 64%) */
+  --accent: #8851f5;
+  --accent-soft: #f3eefe;
+  --accent-strong: #6a35d6;
+  --accent-ring: rgba(136, 81, 245, 0.3);
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --warning: #b45309;
+  --success: #047857;
+  --info: #0e7490;
+
+  --status-open-bg: #ecfeff;
+  --status-open-fg: #0e7490;
+  --status-progress-bg: #fffbeb;
+  --status-progress-fg: #b45309;
+  --status-resolved-bg: #ecfdf5;
+  --status-resolved-fg: #047857;
+  --status-closed-bg: #f4f4f1;
+  --status-closed-fg: #57534e;
+
+  --role-admin-bg: #f5f3ff;
+  --role-admin-fg: #6d28d9;
+  --role-member-bg: #ecfeff;
+  --role-member-fg: #0e7490;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", "Noto Sans Arabic", sans-serif;
+}
+
+/* Author resets must live in @layer base so Tailwind's utility classes (in
+ * @layer utilities) can still win — unlayered rules outrank everything. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    min-height: 100%;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  /* iOS Safari focuses inputs and zooms in when font-size < 16px. Force 16px
+     on touch devices for inputs/textareas/selects to prevent that zoom. */
+  @media (pointer: coarse) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  [dir="rtl"] body {
+    font-family: "Noto Sans Arabic", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* ==================== Tiptap rich-text ==================== */
+.tiptap {
+  min-height: 10rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.tiptap p {
+  margin: 0 0 0.6em 0;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: var(--text-faint);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+[dir="rtl"] .tiptap p.is-editor-empty:first-child::before {
+  float: right;
+}
+
+.tiptap ul,
+.tiptap ol {
+  padding-inline-start: 1.5rem;
+  margin: 0 0 0.6em 0;
+}
+
+.tiptap a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
