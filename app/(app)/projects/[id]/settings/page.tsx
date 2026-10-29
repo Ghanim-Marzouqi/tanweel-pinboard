@@ -20,7 +20,7 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
         include: { user: { select: { id: true, name: true, username: true, isActive: true } } },
         orderBy: { addedAt: 'asc' },
       },
-      _count: { select: { tasks: true } },
+      _count: { select: { tasks: true, requests: true } },
     },
   });
   if (!project) notFound();
@@ -42,7 +42,7 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
         description: project.description,
         isArchived: project.isArchived,
         ownerId: project.ownerId,
-        taskCount: project._count.tasks,
+        taskCount: project._count.tasks + project._count.requests,
       }}
       members={project.members.map((m) => m.user)}
       candidates={candidates}

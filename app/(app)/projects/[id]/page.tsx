@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ProjectTabs } from '@/components/project-tabs';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Archive, Plus, Settings } from 'lucide-react';
@@ -118,6 +119,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         </p>
       )}
 
+      <ProjectTabs projectId={project.id} active="tasks" />
       <TaskFilters view={query.view} people={people} />
 
       {isBoard ? (

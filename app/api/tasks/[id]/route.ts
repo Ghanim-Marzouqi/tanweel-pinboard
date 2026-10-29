@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { RequestError, requestErrorResponse } from '@/lib/requests';
 import {
   requireSession,
   badRequest,
@@ -72,16 +73,27 @@ export async function PUT(req: NextRequest, { params }: Params) {
     unassigned = true;
   }
 
-  const task = await prisma.task.update({
-    where: { id },
-    data: {
-      ...fields,
-      ...(fields.descriptionHtml !== undefined ? descriptionFields(fields.descriptionHtml) : {}),
-      ...(dueDate !== undefined ? { dueDate: dueDate ? isoToDate(dueDate) : null } : {}),
-      ...(nextAssignee !== existing.assigneeId ? { assigneeId: nextAssignee } : {}),
-      ...(projectId !== existing.project.id ? { projectId } : {}),
-    },
-  });
+  let task;
+  try {
+    task = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tasks WHERE id = ${id}::uuid FOR UPDATE`;
+      if (projectId !== existing.project.id && (await tx.requestTaskLink.count({ where: { taskId: id } }))) {
+        throw new RequestError(409, 'Ask an admin to unlink requests before moving this task');
+      }
+      return tx.task.update({
+        where: { id },
+        data: {
+          ...fields,
+          ...(fields.descriptionHtml !== undefined ? descriptionFields(fields.descriptionHtml) : {}),
+          ...(dueDate !== undefined ? { dueDate: dueDate ? isoToDate(dueDate) : null } : {}),
+          ...(nextAssignee !== existing.assigneeId ? { assigneeId: nextAssignee } : {}),
+          ...(projectId !== existing.project.id ? { projectId } : {}),
+        },
+      });
+    });
+  } catch (e) {
+    return requestErrorResponse(e);
+  }
   if (nextAssignee && nextAssignee !== existing.assigneeId) {
     await notifySafely(notifyAssigned(task.id, nextAssignee, guard.session.user));
   }
@@ -99,7 +111,16 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return forbidden('Only the creator, the project owner or an admin can delete this task');
   }
 
-  await prisma.task.delete({ where: { id } });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tasks WHERE id = ${id}::uuid FOR UPDATE`;
+      if (await tx.requestTaskLink.count({ where: { taskId: id } }))
+        throw new RequestError(409, 'Ask an admin to unlink requests before deleting this task');
+      await tx.task.delete({ where: { id } });
+    });
+  } catch (e) {
+    return requestErrorResponse(e);
+  }
   // Best-effort cleanup of stored files (DB cascade has already removed rows).
   await removeFolder(`${id}/`).catch(() => undefined);
 

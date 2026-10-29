@@ -1,0 +1,35 @@
+import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireSession, notFound } from '@/lib/api-auth';
+import { findVisibleRequest } from '@/lib/requests';
+import { openObject } from '@/lib/storage';
+import { Readable } from 'node:stream';
+
+type Params = { params: Promise<{ id: string; attachmentId: string }> };
+
+export async function GET(_req: NextRequest, { params }: Params) {
+  const guard = await requireSession();
+  if (!guard.ok) return guard.response;
+  const { id, attachmentId } = await params;
+
+  const task = await findVisibleRequest(id, guard.session.user);
+  if (!task) return notFound('Attachment not found');
+  const attachment = await prisma.requestAttachment.findFirst({
+    where: { id: attachmentId, requestId: id },
+  });
+  if (!attachment) return notFound('Attachment not found');
+
+  const file = await openObject(attachment.storageKey);
+  if (!file) return notFound('File is missing from storage');
+  const webStream = Readable.toWeb(file.stream) as ReadableStream<Uint8Array>;
+
+  return new Response(webStream, {
+    headers: {
+      'Content-Type': attachment.contentType,
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(attachment.fileName)}`,
+      'Content-Length': String(file.size),
+      'Cache-Control': 'private, max-age=0, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}

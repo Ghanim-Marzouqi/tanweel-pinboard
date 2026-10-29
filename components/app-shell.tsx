@@ -4,7 +4,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { CircleCheckBig, FolderKanban, LayoutGrid, Menu, Plus, UserCog, Users, X } from 'lucide-react';
+import {
+  Inbox,
+  Tags,
+  CircleCheckBig,
+  FolderKanban,
+  LayoutGrid,
+  Menu,
+  Plus,
+  UserCog,
+  Users,
+  X,
+} from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -142,6 +153,14 @@ function SidebarNav({
   return (
     <nav className="flex h-full flex-col gap-6 p-3">
       <div className="space-y-1">
+        <NavLink
+          href="/requests"
+          active={pathname.startsWith('/requests') || /\/projects\/[^/]+\/requests/.test(pathname)}
+          onNavigate={onNavigate}
+        >
+          <Inbox size={16} />
+          {t('requests')}
+        </NavLink>
         <NavLink href="/" active={pathname === '/'} onNavigate={onNavigate}>
           <CircleCheckBig size={16} />
           {t('myTasks')}
@@ -188,6 +207,16 @@ function SidebarNav({
       </div>
 
       <div className="space-y-1 border-t border-[color:var(--border)] pt-3">
+        {user.role === 'admin' && (
+          <NavLink
+            href="/admin/request-categories"
+            active={pathname.startsWith('/admin/request-categories')}
+            onNavigate={onNavigate}
+          >
+            <Tags size={16} />
+            {t('requestCategories')}
+          </NavLink>
+        )}
         {user.role === 'admin' && (
           <NavLink href="/admin/users" active={pathname.startsWith('/admin/users')} onNavigate={onNavigate}>
             <Users size={16} />

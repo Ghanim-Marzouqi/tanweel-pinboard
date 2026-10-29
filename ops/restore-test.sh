@@ -33,6 +33,11 @@ docker run --rm --network none --log-driver local -v "$UPLOADS:/restore" -v "$BA
 # Check every stored attachment exists, its size, and the application can write.
 docker exec "$DB" psql -U postgres -d pinboard_restore_test -At -F '|' \
  -c 'SELECT "storageKey", "sizeBytes" FROM task_attachments' > "$BACKUP/restore-attachments.txt"
+# Older snapshots predate requests; keep those restore tests compatible.
+if test "$(docker exec "$DB" psql -U postgres -d pinboard_restore_test -Atc "SELECT to_regclass('public.request_attachments') IS NOT NULL")" = t; then
+ docker exec "$DB" psql -U postgres -d pinboard_restore_test -At -F '|' \
+  -c 'SELECT "storageKey", "sizeBytes" FROM request_attachments' >> "$BACKUP/restore-attachments.txt"
+fi
 docker run --rm --network none --log-driver local -v "$UPLOADS:/restore" -v "$BACKUP:/backup:ro" \
  --entrypoint sh postgres:18-alpine -c '
  while IFS="|" read -r key size; do

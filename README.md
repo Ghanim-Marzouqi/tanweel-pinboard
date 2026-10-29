@@ -199,6 +199,20 @@ The private retirement archive is `/var/backups/tanweel-vikunja-retired/20261029
 
 For an authorized rollback, restore `compose.before.yaml` to `/srv/tanweel-tasks/compose.yaml`, restore `unless-stopped` on the three old containers, start the database and wait for readiness, then start the API and web containers. Restore the old hostname block from `Caddyfile.rollback-vikunja`, validate Caddy and hot-reload it, then verify the old service. This prepared rollback configuration retains Pinboard and the corrected driver-registration upstream. If unrelated proxy changes have happened since retirement, merge only the old hostname block into the current Caddyfile instead of replacing the whole file. The retained volume can be started directly; use `final.dump` and `final-directory.tar.gz` only if data recovery is required.
 
+## Project requests
+
+**Requests / الطلبات** appears before My tasks in navigation and before Tasks in each project's tabs. The global Requests page aggregates only the requests the signed-in user may see. New requests always belong to a project.
+
+- Members can submit requests in projects they belong to and see only their own requests, comments, files and history. Project ownership does not override request privacy. Losing project membership removes access to that project's requests.
+- Administrators see all requests and manage review status, categories and task links. Categories are shared across projects, have English/Arabic labels, and can be renamed or archived. Archived categories remain on historical requests but cannot be selected for new submissions.
+- A request records its title, description, category, occurrence date/time in **Asia/Muscat**, submitter, optional shift and suggested solution. Discussion and attachments (up to 10 MB each) stay on the original request.
+- Review states are **New → Under review → Accepted → Closed**. Closing requires a reason; administrators can reopen requests. Closed requests and requests in archived projects are read-only. History records review changes, discussion, file additions/removals and task linking/unlinking.
+- Administrators can link existing tasks or create and link new tasks in the **same project**, including assignment, priority and due date. A request can link to multiple tasks and a task can serve multiple requests. Creation retries reuse the same task. Task completion never automatically changes the request's review state.
+- Linked tasks remain visible according to existing project permissions. Task pages show backlinks only to requests the current user may see. Linking does not copy private attachments or discussion into tasks; the administrator reviews the description when creating a task from a request. Existing assignment emails continue to apply to newly created assigned tasks.
+- Administrators must unlink requests before a linked task can be moved to another project or deleted. Projects containing requests cannot be deleted; archive them instead. Requests and their history are retained.
+
+The additive `project_requests` migration creates the request tables and four editable starter categories: Technical issue, Enhancement, Suggestion and Observation. All request uploads live under `requests/` in the existing uploads volume, so nightly backups already include them. `restore-test.sh` checks request attachment sizes for newer snapshots and remains compatible with snapshots from before this feature. Run the migration and regenerate Prisma before starting the updated application. Deployment follows the existing backup and release procedure; implementing this feature locally does not deploy it.
+
 ## Layout
 
 ```

@@ -12,14 +12,22 @@ const subscribe = () => () => {};
  * client renders the locale-aware formatted version using the browser's
  * timezone.
  */
-export function FormattedDate({ iso, className }: { iso: string; className?: string }) {
+export function FormattedDate({
+  iso,
+  className,
+  timeZone,
+}: {
+  iso: string;
+  className?: string;
+  timeZone?: string;
+}) {
   const locale = useLocale();
   const hydrated = useSyncExternalStore(
     subscribe,
     () => true,
     () => false,
   );
-  const text = hydrated ? formatDateTime(iso, locale) : iso.slice(0, 16).replace('T', ' ');
+  const text = hydrated ? formatDateTime(iso, locale, timeZone) : iso.slice(0, 16).replace('T', ' ');
 
   return (
     <span suppressHydrationWarning className={className}>

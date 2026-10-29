@@ -50,13 +50,16 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  projectsOwned  Project[]
-  memberships    ProjectMember[]
-  tasksCreated   Task[]           @relation("TaskCreator")
-  tasksAssigned  Task[]           @relation("TaskAssignee")
-  comments       TaskComment[]
-  attachments    TaskAttachment[]
-  passwordResets PasswordResetToken[]
+  projectsOwned      Project[]
+  memberships        ProjectMember[]
+  tasksCreated       Task[]               @relation("TaskCreator")
+  tasksAssigned      Task[]               @relation("TaskAssignee")
+  comments           TaskComment[]
+  attachments        TaskAttachment[]
+  passwordResets     PasswordResetToken[]
+  requests           WorkRequest[]
+  requestActivities  RequestActivity[]
+  requestAttachments RequestAttachment[]
 
   @@map("users")
 }
@@ -123,9 +126,10 @@ model Project {
   updatedAt   DateTime @updatedAt
   ownerId     String   @db.Uuid
 
-  owner   User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  members ProjectMember[]
-  tasks   Task[]
+  owner    User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  members  ProjectMember[]
+  tasks    Task[]
+  requests WorkRequest[]
 
   @@index([ownerId])
   @@map("projects")
@@ -146,29 +150,30 @@ model ProjectMember {
 }
 
 model Task {
-  id              String           @id @default(uuid()) @db.Uuid
-  title           String           @db.VarChar(200)
-  descriptionHtml String           @db.Text
+  id              String            @id @default(uuid()) @db.Uuid
+  title           String            @db.VarChar(200)
+  descriptionHtml String            @db.Text
   /// Plain-text copy of the description, kept in sync on save, for search.
-  descriptionText String           @default("") @db.Text
-  status          TaskStatus       @default(Todo)
-  priority        TaskPriority     @default(Medium)
+  descriptionText String            @default("") @db.Text
+  status          TaskStatus        @default(Todo)
+  priority        TaskPriority      @default(Medium)
   /// Calendar date only (Muscat time); no time of day.
-  dueDate         DateTime?        @db.Date
+  dueDate         DateTime?         @db.Date
   /// Checklist items in the description, kept in sync on save.
-  checklistTotal  Int              @default(0)
-  checklistDone   Int              @default(0)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  projectId       String           @db.Uuid
-  createdById     String           @db.Uuid
+  checklistTotal  Int               @default(0)
+  checklistDone   Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  projectId       String            @db.Uuid
+  createdById     String            @db.Uuid
   /// Must be a member of the project; cleared when they leave it.
-  assigneeId      String?          @db.Uuid
-  project         Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  createdBy       User             @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  assignee        User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId      String?           @db.Uuid
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  createdBy       User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignee        User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   attachments     TaskAttachment[]
   comments        TaskComment[]
+  requestLinks    RequestTaskLink[]
 
   @@index([projectId, status])
   @@index([projectId, dueDate])
@@ -208,4 +213,91 @@ model TaskComment {
 
   @@index([taskId, createdAt])
   @@map("task_comments")
+}
+
+enum RequestStatus {
+  New
+  UnderReview
+  Accepted
+  Closed
+}
+
+model RequestCategory {
+  id         String        @id @default(uuid()) @db.Uuid
+  nameEn     String        @unique @db.VarChar(80)
+  nameAr     String        @unique @db.VarChar(80)
+  isArchived Boolean       @default(false)
+  requests   WorkRequest[]
+
+  @@map("request_categories")
+}
+
+model WorkRequest {
+  id            String              @id @default(uuid()) @db.Uuid
+  number        Int                 @unique @default(autoincrement())
+  projectId     String              @db.Uuid
+  createdById   String              @db.Uuid
+  categoryId    String              @db.Uuid
+  title         String              @db.VarChar(200)
+  description   String              @db.Text
+  suggestions   String              @default("") @db.Text
+  shift         String              @default("") @db.VarChar(120)
+  occurredAt    DateTime
+  status        RequestStatus       @default(New)
+  closureReason String              @default("") @db.VarChar(2000)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  project       Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  createdBy     User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  category      RequestCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  activities    RequestActivity[]
+  attachments   RequestAttachment[]
+  taskLinks     RequestTaskLink[]
+
+  @@index([projectId, createdById, createdAt])
+  @@index([projectId, status, createdAt])
+  @@map("work_requests")
+}
+
+model RequestActivity {
+  id        String      @id @default(uuid()) @db.Uuid
+  requestId String      @db.Uuid
+  actorId   String      @db.Uuid
+  kind      String      @db.VarChar(30)
+  body      String      @db.Text
+  createdAt DateTime    @default(now())
+  request   WorkRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor     User        @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId, createdAt])
+  @@map("request_activities")
+}
+
+model RequestTaskLink {
+  requestId   String      @db.Uuid
+  taskId      String      @db.Uuid
+  creationKey String?     @unique @db.Uuid
+  createdAt   DateTime    @default(now())
+  request     WorkRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  task        Task        @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, taskId])
+  @@index([taskId])
+  @@map("request_task_links")
+}
+
+model RequestAttachment {
+  id           String      @id @default(uuid()) @db.Uuid
+  requestId    String      @db.Uuid
+  uploadedById String      @db.Uuid
+  fileName     String      @db.VarChar(255)
+  contentType  String      @db.VarChar(150)
+  sizeBytes    Int
+  storageKey   String      @unique @db.VarChar(512)
+  uploadedAt   DateTime    @default(now())
+  request      WorkRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedBy   User        @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([requestId])
+  @@map("request_attachments")
 }

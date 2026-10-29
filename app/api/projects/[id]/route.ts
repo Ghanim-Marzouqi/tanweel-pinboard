@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { RequestError, requestErrorResponse } from '@/lib/requests';
 import {
   requireSession,
   badRequest,
@@ -65,6 +66,15 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const taskCount = await prisma.task.count({ where: { projectId: id } });
   if (taskCount > 0) return conflict('Project still has tasks; archive it instead');
 
-  await prisma.project.delete({ where: { id } });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM projects WHERE id = ${id}::uuid FOR UPDATE`;
+      if (await tx.workRequest.count({ where: { projectId: id } }))
+        throw new RequestError(409, 'Project has requests; archive it instead');
+      await tx.project.delete({ where: { id } });
+    });
+  } catch (e) {
+    return requestErrorResponse(e);
+  }
   return NextResponse.json({ ok: true });
 }

@@ -31,11 +31,12 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function formatDateTime(value: string | Date, locale: string): string {
+export function formatDateTime(value: string | Date, locale: string, timeZone?: string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   // Force Latin (Western Arabic) numerals everywhere — even when locale is `ar`
   // the user wants 26/04/2026 rather than ٢٦/٠٤/٢٠٢٦.
   return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-OM' : 'en-GB', {
+    timeZone,
     dateStyle: 'medium',
     timeStyle: 'short',
     numberingSystem: 'latn',
