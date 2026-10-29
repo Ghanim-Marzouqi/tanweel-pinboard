@@ -29,6 +29,15 @@
   --status-done-bg: #ecfdf5;
   --status-done-fg: #047857;
 
+  --priority-low-bg: #f4f4f1;
+  --priority-low-fg: #57534e;
+  --priority-medium-bg: #eff6ff;
+  --priority-medium-fg: #1d4ed8;
+  --priority-high-bg: #fff7ed;
+  --priority-high-fg: #c2410c;
+  --priority-urgent-bg: #fef2f2;
+  --priority-urgent-fg: #b91c1c;
+
   --role-admin-bg: #f5f3ff;
   --role-admin-fg: #6d28d9;
   --role-member-bg: #ecfeff;
@@ -97,7 +106,7 @@
   }
 
   [dir="rtl"] body {
-    font-family: "Noto Sans Arabic", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-family: var(--font-arabic), "Noto Sans Arabic", ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
 }
 
@@ -136,6 +145,43 @@
 .tiptap a {
   color: var(--accent);
   text-decoration: underline;
+}
+
+/* Checklists (Tiptap task lists) */
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-inline-start: 0.25rem;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+  flex: none;
+  margin-top: 0.3rem;
+}
+
+.tiptap ul[data-type="taskList"] li > label input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+}
+
+.tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.tiptap ul[data-type="taskList"] ul[data-type="taskList"] {
+  margin: 0;
 }
 
 /* Reduced motion */

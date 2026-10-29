@@ -8,7 +8,7 @@ import { UsersAdmin } from '@/components/users-admin';
 export default async function UsersPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login?callbackUrl=/admin/users');
-  if (!isAdmin(session.user)) redirect('/projects');
+  if (!isAdmin(session.user)) redirect('/');
 
   const users = await prisma.user.findMany({
     select: PUBLIC_USER_SELECT,

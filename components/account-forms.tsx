@@ -175,7 +175,7 @@ function PasswordForm({ username, forced = false }: { username: string; forced?:
         // earlier "redirect to /account" answers, so a soft navigation would
         // bounce straight back here.
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.assign('/projects');
+        window.location.assign('/');
         return;
       }
       toast.success(tToast('passwordChanged'));

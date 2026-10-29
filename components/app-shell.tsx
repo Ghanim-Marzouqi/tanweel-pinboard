@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FolderKanban, LayoutGrid, Menu, Plus, UserCog, Users, X } from 'lucide-react';
+import { CircleCheckBig, FolderKanban, LayoutGrid, Menu, Plus, UserCog, Users, X } from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -50,7 +50,7 @@ export function AppShell({ user, projects, minimal = false, children }: Props) {
             </button>
           )}
           <Link
-            href="/projects"
+            href="/"
             className="inline-flex shrink-0 items-center gap-2 rounded-lg text-[color:var(--text)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-ring)]"
           >
             <BrandMark />
@@ -142,6 +142,10 @@ function SidebarNav({
   return (
     <nav className="flex h-full flex-col gap-6 p-3">
       <div className="space-y-1">
+        <NavLink href="/" active={pathname === '/'} onNavigate={onNavigate}>
+          <CircleCheckBig size={16} />
+          {t('myTasks')}
+        </NavLink>
         <NavLink href="/projects" active={pathname === '/projects'} onNavigate={onNavigate}>
           <LayoutGrid size={16} />
           {t('allProjects')}

@@ -5,6 +5,7 @@ import {
   ProjectCreateSchema,
   TaskFormSchema,
   TaskListQuerySchema,
+  TaskUpdateSchema,
   UserCreateSchema,
   UserUpdateSchema,
 } from '@/lib/validation';
@@ -27,12 +28,25 @@ describe('LoginSchema', () => {
 });
 
 describe('TaskFormSchema', () => {
-  it('defaults status and description', () => {
+  it('fills in defaults', () => {
     expect(TaskFormSchema.parse({ title: 'Fix invoice' })).toEqual({
       title: 'Fix invoice',
       descriptionHtml: '',
       status: 'Todo',
+      priority: 'Medium',
+      dueDate: null,
+      assigneeId: null,
     });
+  });
+
+  it('treats blank due date and assignee as none', () => {
+    const parsed = TaskFormSchema.parse({ title: 'x', dueDate: '', assigneeId: '' });
+    expect(parsed.dueDate).toBeNull();
+    expect(parsed.assigneeId).toBeNull();
+  });
+
+  it('rejects impossible dates', () => {
+    expect(TaskFormSchema.safeParse({ title: 'x', dueDate: '2026-02-30' }).success).toBe(false);
   });
 
   it('rejects a blank title', () => {
@@ -40,7 +54,23 @@ describe('TaskFormSchema', () => {
   });
 });
 
+describe('TaskUpdateSchema', () => {
+  it('only contains the fields that were sent', () => {
+    // A board drag sends just the status; nothing else may be reset.
+    expect(TaskUpdateSchema.parse({ status: 'Done' })).toEqual({ status: 'Done' });
+  });
+
+  it('clears the due date when sent blank', () => {
+    expect(TaskUpdateSchema.parse({ dueDate: '' })).toEqual({ dueDate: null });
+  });
+});
+
 describe('TaskListQuerySchema', () => {
+  it('defaults to the first page of the list, newest first', () => {
+    expect(TaskListQuerySchema.parse({})).toEqual({ view: 'list', sort: 'newest', page: 1 });
+  });
+
+
   it('accepts the four statuses only', () => {
     for (const status of ['Todo', 'InProgress', 'InReview', 'Done']) {
       expect(TaskListQuerySchema.safeParse({ status }).success).toBe(true);

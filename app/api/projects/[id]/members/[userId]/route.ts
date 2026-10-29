@@ -23,6 +23,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
   if (userId === project.ownerId) return badRequest('The project owner cannot be removed');
 
-  await prisma.projectMember.deleteMany({ where: { projectId: id, userId } });
+  // Someone who leaves a project can't stay assigned to its tasks.
+  await prisma.$transaction([
+    prisma.task.updateMany({ where: { projectId: id, assigneeId: userId }, data: { assigneeId: null } }),
+    prisma.projectMember.deleteMany({ where: { projectId: id, userId } }),
+  ]);
   return NextResponse.json({ ok: true });
 }

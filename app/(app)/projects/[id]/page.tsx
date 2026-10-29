@@ -6,8 +6,18 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canManageProject, canWriteInProject, visibleProjectsWhere } from '@/lib/access';
 import { TaskListQuerySchema, TASK_STATUSES, type TaskStatus } from '@/lib/validation';
-import { taskListWhere } from '@/lib/tasks';
-import { TaskListClient } from '@/components/task-list';
+import {
+  BOARD_LIMIT,
+  PAGE_SIZE,
+  projectPeople,
+  TASK_SUMMARY_SELECT,
+  taskFilterWhere,
+  taskOrderBy,
+  toTaskSummary,
+} from '@/lib/tasks';
+import { TaskBoard } from '@/components/task-board';
+import { TaskFilters } from '@/components/task-filters';
+import { TaskList } from '@/components/task-list';
 import { buttonClass } from '@/components/ui/button';
 
 interface PageProps {
@@ -27,32 +37,42 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   });
   if (!project) notFound();
 
+  // Bad filter values (hand-edited URLs) are ignored rather than erroring.
   const raw = await searchParams;
-  const parsed = TaskListQuerySchema.safeParse({
-    status: typeof raw.status === 'string' ? raw.status : undefined,
-    q: typeof raw.q === 'string' ? raw.q : undefined,
-  });
-  const filters = parsed.success ? parsed.data : {};
+  const single = Object.fromEntries(
+    Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === 'string'),
+  );
+  const parsed = TaskListQuerySchema.safeParse(single);
+  const query = parsed.success ? parsed.data : TaskListQuerySchema.parse({});
+  const isBoard = query.view === 'board';
 
-  const [tasks, grouped] = await Promise.all([
+  const filterWhere = taskFilterWhere(
+    // The board's columns are the statuses, so it ignores a status filter.
+    isBoard ? { ...query, status: undefined } : query,
+    { userId: session.user.id },
+  );
+  const where = { projectId: project.id, ...filterWhere };
+  const paging: { skip?: number; take: number } = isBoard
+    ? { take: BOARD_LIMIT }
+    : { skip: (query.page - 1) * PAGE_SIZE, take: PAGE_SIZE };
+
+  const [rows, total, grouped, people] = await Promise.all([
     prisma.task.findMany({
-      where: taskListWhere(project.id, filters),
-      include: {
-        createdBy: { select: { name: true } },
-        _count: { select: { attachments: true, comments: true } },
-      },
-      orderBy: { createdAt: 'desc' },
+      where,
+      select: TASK_SUMMARY_SELECT,
+      orderBy: isBoard ? taskOrderBy('priority') : taskOrderBy(query.sort),
+      ...paging,
     }),
-    prisma.task.groupBy({
-      by: ['status'],
-      where: { projectId: project.id },
-      _count: { _all: true },
-    }),
+    isBoard ? Promise.resolve(0) : prisma.task.count({ where }),
+    prisma.task.groupBy({ by: ['status'], where: { projectId: project.id }, _count: { _all: true } }),
+    projectPeople(project.id),
   ]);
   const counts = Object.fromEntries(TASK_STATUSES.map((s) => [s, 0])) as Record<TaskStatus, number>;
   for (const g of grouped) counts[g.status as TaskStatus] = g._count._all;
 
   const canWrite = canWriteInProject(project);
+  const tasks = rows.map(toTaskSummary);
+  const filtered = Object.keys(filterWhere).length > 0;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -75,10 +95,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         </div>
         <div className="flex items-center gap-2">
           {canManageProject(session.user, project) && (
-            <Link
-              href={`/projects/${project.id}/settings`}
-              className={buttonClass({ variant: 'secondary' })}
-            >
+            <Link href={`/projects/${project.id}/settings`} className={buttonClass({ variant: 'secondary' })}>
               <Settings size={16} />
               {t('projects.settings')}
             </Link>
@@ -101,22 +118,23 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         </p>
       )}
 
-      <TaskListClient
-        projectId={project.id}
-        canCreate={canWrite}
-        counts={counts}
-        tasks={tasks.map((task) => ({
-          id: task.id,
-          title: task.title,
-          status: task.status as TaskStatus,
-          createdAt: task.createdAt.toISOString(),
-          updatedAt: task.updatedAt.toISOString(),
-          createdByName: task.createdBy.name,
-          attachmentsCount: task._count.attachments,
-          commentsCount: task._count.comments,
-        }))}
-        initialFilters={{ status: filters.status, q: filters.q ?? '' }}
-      />
+      <TaskFilters view={query.view} people={people} />
+
+      {isBoard ? (
+        // Re-mount when the data changes so the board's local state follows it.
+        <TaskBoard key={tasks.map((x) => `${x.id}:${x.status}`).join(',')} tasks={tasks} canEdit={canWrite} />
+      ) : (
+        <TaskList
+          projectId={project.id}
+          tasks={tasks}
+          counts={counts}
+          total={total}
+          page={query.page}
+          pageSize={PAGE_SIZE}
+          canCreate={canWrite}
+          filtered={filtered}
+        />
+      )}
     </div>
   );
 }

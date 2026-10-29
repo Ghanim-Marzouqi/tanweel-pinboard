@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession, badRequest, notFound, forbidden, findVisibleProject } from '@/lib/api-auth';
 import { canWriteInProject } from '@/lib/access';
+import { isoToDate } from '@/lib/dates';
+import { descriptionFields } from '@/lib/html-text';
+import {
+  isProjectMember,
+  PAGE_SIZE,
+  TASK_SUMMARY_SELECT,
+  taskFilterWhere,
+  taskOrderBy,
+  toTaskSummary,
+} from '@/lib/tasks';
 import { TaskFormSchema, TaskListQuerySchema } from '@/lib/validation';
-import { taskListWhere } from '@/lib/tasks';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,17 +27,29 @@ export async function GET(req: NextRequest, { params }: Params) {
   const query = Object.fromEntries(req.nextUrl.searchParams.entries());
   const parsed = TaskListQuerySchema.safeParse(query);
   if (!parsed.success) return badRequest('Invalid query', parsed.error.issues);
+  const filters = parsed.data;
 
-  const tasks = await prisma.task.findMany({
-    where: taskListWhere(project.id, parsed.data),
-    include: {
-      createdBy: { select: { id: true, name: true } },
-      _count: { select: { attachments: true, comments: true } },
-    },
-    orderBy: { createdAt: 'desc' },
+  const where = {
+    projectId: project.id,
+    ...taskFilterWhere(filters, { userId: guard.session.user.id }),
+  };
+  const [total, rows] = await Promise.all([
+    prisma.task.count({ where }),
+    prisma.task.findMany({
+      where,
+      select: TASK_SUMMARY_SELECT,
+      orderBy: taskOrderBy(filters.sort),
+      skip: (filters.page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+  ]);
+
+  return NextResponse.json({
+    tasks: rows.map(toTaskSummary),
+    page: filters.page,
+    pageSize: PAGE_SIZE,
+    total,
   });
-
-  return NextResponse.json({ tasks });
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -43,9 +64,21 @@ export async function POST(req: NextRequest, { params }: Params) {
   const json = await req.json().catch(() => null);
   const parsed = TaskFormSchema.safeParse(json);
   if (!parsed.success) return badRequest('Invalid body', parsed.error.issues);
+  const { dueDate, assigneeId, ...fields } = parsed.data;
+
+  if (assigneeId && !(await isProjectMember(project.id, assigneeId))) {
+    return badRequest('The assignee must be a member of the project');
+  }
 
   const task = await prisma.task.create({
-    data: { ...parsed.data, projectId: project.id, createdById: guard.session.user.id },
+    data: {
+      ...fields,
+      ...descriptionFields(fields.descriptionHtml),
+      dueDate: dueDate ? isoToDate(dueDate) : null,
+      assigneeId,
+      projectId: project.id,
+      createdById: guard.session.user.id,
+    },
   });
 
   return NextResponse.json({ task }, { status: 201 });

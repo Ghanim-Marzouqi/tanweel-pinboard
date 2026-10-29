@@ -1,5 +1,6 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { E2E_ADMIN } from './credentials';
+import { createProject, expectHome, newPage, open, signIn } from './helpers';
 
 // One scenario across two people (admin + member), so the steps share state.
 test.describe.configure({ mode: 'serial' });
@@ -12,36 +13,9 @@ const taskTitle = `Draft homepage copy ${run}`;
 let sharedProjectUrl = '';
 let privateProjectUrl = '';
 
-/** Navigate and wait until the page is hydrated, so typed input isn't lost. */
-async function open(page: Page, url: string) {
-  await page.goto(url);
-  await page.waitForLoadState('networkidle');
-}
-
-async function signIn(page: Page, username: string, password: string, { expectSuccess = true } = {}) {
-  await open(page, '/login');
-  await page.getByLabel('Username or email').fill(username);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  if (expectSuccess) await page.waitForURL((url) => url.pathname !== '/login');
-}
-
-async function newPage(browser: Browser) {
-  const context = await browser.newContext();
-  return context.newPage();
-}
-
-async function createProject(page: Page, name: string): Promise<string> {
-  await open(page, '/projects/new');
-  await page.getByLabel('Project name').fill(name);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
-  return new URL(page.url()).pathname;
-}
-
 test('admin creates a user and two projects, sharing one', async ({ page }) => {
   await signIn(page, E2E_ADMIN.username, E2E_ADMIN.password);
-  await expect(page).toHaveURL(/\/projects$/);
+  await expectHome(page);
 
   await test.step('add a member with a temporary password', async () => {
     await open(page, '/admin/users');
@@ -84,7 +58,7 @@ test('member must change the temporary password, sees only shared projects, adds
     await page.getByLabel('New password', { exact: true }).fill(member.newPassword);
     await page.getByLabel('Confirm new password').fill(member.newPassword);
     await page.getByRole('button', { name: 'Change password' }).click();
-    await expect(page).toHaveURL(/\/projects$/);
+    await expectHome(page);
   });
 
   await test.step('sidebar lists only the shared project', async () => {
@@ -98,7 +72,7 @@ test('member must change the temporary password, sees only shared projects, adds
     const res = await page.goto(privateProjectUrl);
     expect(res?.status()).toBe(404);
     await page.goto('/admin/users');
-    await expect(page).toHaveURL(/\/projects$/);
+    await expectHome(page);
     const api = await page.request.get('/api/admin/users');
     expect(api.status()).toBe(403);
   });
@@ -145,7 +119,7 @@ test('archived projects are read-only and deactivated users cannot sign in', asy
   const memberPage = await newPage(browser);
   await test.step('member sees the project read-only', async () => {
     await signIn(memberPage, member.username, member.newPassword);
-    await expect(memberPage).toHaveURL(/\/projects$/);
+    await expectHome(memberPage);
     await open(memberPage, sharedProjectUrl);
     await expect(memberPage.getByText('This project is archived')).toBeVisible();
     await expect(memberPage.getByRole('link', { name: 'Add task' })).toHaveCount(0);
@@ -173,5 +147,5 @@ test('switching to Arabic flips the layout to right-to-left', async ({ page }) =
   await signIn(page, E2E_ADMIN.username, E2E_ADMIN.password);
   await page.getByRole('button', { name: 'Language' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('heading', { name: 'المشاريع', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'مهامي', level: 1 })).toBeVisible();
 });

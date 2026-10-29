@@ -1,6 +1,6 @@
 # Pinboard · لوحة المهام
 
-Tanweel's internal project and task manager, served at **https://pinboard.tanweel.om**. Work is organised into projects that only their members can see. Each task has a title, rich-text description, status (To do / In progress / In review / Done), file attachments and a comment thread. The whole UI is available in English and Arabic (with right-to-left layout).
+Tanweel's internal project and task manager, served at **https://pinboard.tanweel.om**. Work is organised into projects that only their members can see. Each task has a title, rich-text description with checklists, status (To do / In progress / In review / Done), priority, due date, one assignee, file attachments and a comment thread. Projects show tasks as a filterable list or a drag-and-drop board, and the home page lists your own open tasks by due date. The whole UI is available in English and Arabic (right-to-left, Tajawal font).
 
 The app is deliberately simple: it's built for Tanweel's own projects, not as a general-purpose task tool.
 
@@ -108,14 +108,18 @@ The GitHub Actions workflow runs the same checks on a clean machine, but only wh
 app/
   (auth)/login             sign-in page
   (app)/                   signed-in pages (shared header + project sidebar)
-    projects/              overview, new, [id] (task list), [id]/settings, [id]/tasks/new
+    page.tsx               home: My tasks, grouped by due date
+    projects/              overview, new, [id] (list/board), [id]/settings, [id]/tasks/new
     tasks/[id]             task detail (form + files + comments)
     account/               My account (profile, password; forced password change)
     admin/users/           user management (admins)
   api/...                  REST endpoints (projects, members, tasks, users, account)
 components/
   app-shell.tsx            header + sidebar / mobile drawer
-  task-form.tsx            create/edit task (RHF + zod)
+  task-form.tsx            create/edit task (RHF + zod), move to another project
+  task-list.tsx            list view (status counters, table/cards, paging)
+  task-board.tsx           board view (dnd-kit; drag to change status)
+  task-filters.tsx         search + filters + List/Board switch (state in the URL)
   project-settings.tsx     details, members, archive, delete
   users-admin.tsx          users table + add/edit/reset dialogs
   account-forms.tsx        profile + password forms
@@ -126,6 +130,9 @@ lib/
   password.ts              argon2id hashing
   rate-limit.ts            sign-in failure limiter
   storage.ts               attachment files on disk (path-safe)
+  tasks.ts                 task filters, sorting, summary shape
+  dates.ts                 Muscat dates, Sunday–Saturday weeks, due-date groups
+  html-text.ts             search text + checklist progress from descriptions
   validation.ts            zod schemas
 scripts/
   create-user.mjs          user CLI + first-admin bootstrap
@@ -143,7 +150,7 @@ Replaces the Vikunja instance at tasks.tanweel.om, kept deliberately simple:
 
 0. **Standalone app** (done): built-in accounts, Tanweel branding, own Docker setup, tests.
 1. **Users and projects** (done): Users page, My account, stay signed in, forced password change, members-only projects, To do / In progress / In review / Done, sidebar, browser tests, local pre-push checks.
-2. **Tasks and views**: one assignee, due date, priority (Low / Medium / High / Urgent), checklists, move a task between projects; List and Board views; "My tasks" home page; filters, search in descriptions, paging.
+2. **Tasks and views** (done): one assignee, due date, priority (Low / Medium / High / Urgent), checklists, move a task between projects; List and Board views; "My tasks" home page; filters, search in descriptions, paging; Tajawal font for Arabic.
 3. **Email notifications**: assigned to you, @mentions, new comments, morning summary of overdue / due-today tasks, "Forgot password".
 4. **Go live** at pinboard.tanweel.om: HTTPS, nightly backups of the database and `uploads` volume with a tested restore, health checks; then retire tasks.tanweel.om.
 

@@ -38,7 +38,14 @@
       "attachments": "Attachments",
       "createdAt": "Created",
       "updatedAt": "Updated",
-      "createdBy": "Created by"
+      "createdBy": "Created by",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "unassigned": "Unassigned",
+      "dueDate": "Due date",
+      "noDueDate": "No due date",
+      "project": "Project",
+      "checklist": "Checklist"
     },
     "status": {
       "todo": "To do",
@@ -48,7 +55,25 @@
     },
     "filters": {
       "status": "Status",
-      "search": "Search title…"
+      "search": "Search tasks…",
+      "assignee": "Assignee",
+      "anyone": "Anyone",
+      "me": "Assigned to me",
+      "unassigned": "Unassigned",
+      "priority": "Priority",
+      "anyPriority": "Any priority",
+      "due": "Due",
+      "anyDue": "Any date",
+      "overdue": "Overdue",
+      "today": "Due today",
+      "week": "Due this week",
+      "none": "No due date",
+      "sort": "Sort",
+      "sortNewest": "Newest first",
+      "sortDue": "Due date",
+      "sortPriority": "Priority",
+      "clear": "Clear filters",
+      "anyStatus": "Any status"
     },
     "table": {
       "attachments": "{count, plural, =0 {No files} =1 {1 file} other {# files}}",
@@ -72,7 +97,39 @@
       "download": "Download",
       "open": "Open"
     },
-    "archivedNotice": "This project is archived, so its tasks are read-only."
+    "archivedNotice": "This project is archived, so its tasks are read-only.",
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "views": {
+      "label": "View",
+      "list": "List",
+      "board": "Board"
+    },
+    "board": {
+      "empty": "No tasks",
+      "moveFailed": "Couldn't move the task",
+      "readOnly": "Read-only"
+    },
+    "due": {
+      "today": "Today",
+      "overdue": "Overdue"
+    },
+    "pagination": {
+      "range": "{from}–{to} of {total}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "emptyFiltered": "No tasks match these filters.",
+    "move": {
+      "title": "Move to another project",
+      "selectProject": "Choose a project…",
+      "move": "Move",
+      "moving": "Moving…"
+    }
   },
   "comments": {
     "title": "Comments",
@@ -171,7 +228,9 @@
     "userCreated": "User created",
     "userSaved": "User saved",
     "passwordReset": "Temporary password set",
-    "saveFailed": "Couldn't save your changes"
+    "saveFailed": "Couldn't save your changes",
+    "taskMoved": "Task moved",
+    "taskMovedUnassigned": "Task moved. Its assignee isn't in that project, so it's now unassigned."
   },
   "richText": {
     "bold": "Bold",
@@ -180,7 +239,8 @@
     "orderedList": "Numbered list",
     "link": "Link",
     "linkPrompt": "Paste the URL",
-    "removeLink": "Remove link"
+    "removeLink": "Remove link",
+    "checklist": "Checklist"
   },
   "nav": {
     "projects": "Projects",
@@ -190,7 +250,8 @@
     "account": "My account",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "noProjects": "No projects yet"
+    "noProjects": "No projects yet",
+    "myTasks": "My tasks"
   },
   "projects": {
     "title": "Projects",
@@ -305,6 +366,18 @@
       "lastAdmin": "At least one active admin is required.",
       "self": "You can't remove your own admin access or deactivate yourself.",
       "invalid": "Check the highlighted fields."
+    }
+  },
+  "myTasks": {
+    "title": "My tasks",
+    "subtitle": "Open tasks assigned to you in all your projects",
+    "empty": "Nothing is assigned to you right now.",
+    "groups": {
+      "overdue": "Overdue",
+      "today": "Due today",
+      "thisWeek": "Later this week",
+      "later": "Later",
+      "none": "No due date"
     }
   }
 }

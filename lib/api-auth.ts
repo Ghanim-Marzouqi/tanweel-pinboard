@@ -45,6 +45,7 @@ export function findVisibleTask(taskId: string, actor: Actor) {
     select: {
       id: true,
       createdById: true,
+      assigneeId: true,
       project: { select: { id: true, ownerId: true, isArchived: true } },
     },
   });

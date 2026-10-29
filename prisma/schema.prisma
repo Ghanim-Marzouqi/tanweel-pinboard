@@ -18,6 +18,13 @@ enum TaskStatus {
   Done
 }
 
+enum TaskPriority {
+  Low
+  Medium
+  High
+  Urgent
+}
+
 /// Local account. Usernames and emails are stored lower-cased so lookups are
 /// case-insensitive. Users are deactivated rather than deleted, so their
 /// tasks, comments and uploads keep a valid author.
@@ -41,7 +48,8 @@ model User {
 
   projectsOwned  Project[]
   memberships    ProjectMember[]
-  tasksCreated   Task[]
+  tasksCreated   Task[]           @relation("TaskCreator")
+  tasksAssigned  Task[]           @relation("TaskAssignee")
   comments       TaskComment[]
   attachments    TaskAttachment[]
 
@@ -85,17 +93,30 @@ model Task {
   id              String           @id @default(uuid()) @db.Uuid
   title           String           @db.VarChar(200)
   descriptionHtml String           @db.Text
+  /// Plain-text copy of the description, kept in sync on save, for search.
+  descriptionText String           @default("") @db.Text
   status          TaskStatus       @default(Todo)
+  priority        TaskPriority     @default(Medium)
+  /// Calendar date only (Muscat time); no time of day.
+  dueDate         DateTime?        @db.Date
+  /// Checklist items in the description, kept in sync on save.
+  checklistTotal  Int              @default(0)
+  checklistDone   Int              @default(0)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   projectId       String           @db.Uuid
   createdById     String           @db.Uuid
+  /// Must be a member of the project; cleared when they leave it.
+  assigneeId      String?          @db.Uuid
   project         Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy       User             @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignee        User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   attachments     TaskAttachment[]
   comments        TaskComment[]
 
   @@index([projectId, status])
+  @@index([projectId, dueDate])
+  @@index([assigneeId, status, dueDate])
   @@index([createdAt(sort: Desc)])
   @@index([createdById])
   @@map("tasks")

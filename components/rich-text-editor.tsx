@@ -4,11 +4,16 @@ import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { useLocale, useTranslations } from 'next-intl';
-import { Bold, Italic, List, ListOrdered, Link as LinkIcon } from 'lucide-react';
+import { Bold, Italic, List, ListChecks, ListOrdered, Link as LinkIcon } from 'lucide-react';
 import { cx } from '@/lib/utils';
 
 interface Props {
+  /**
+   * Initial content. After mounting, the editor owns its content and reports
+   * changes through `onChange` (nothing in the app replaces it from outside).
+   */
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
@@ -30,7 +35,6 @@ export function RichTextEditor({
   const locale = useLocale();
   const t = useTranslations('richText');
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
-
   const editor = useEditor(
     {
       extensions: [
@@ -47,6 +51,9 @@ export function RichTextEditor({
           autolink: true,
           HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
         }),
+        // Checklists. Progress (done/total) is derived from this HTML on save.
+        TaskList,
+        TaskItem.configure({ nested: true, onReadOnlyChecked: () => false }),
       ],
       content: value || '',
       editable: !readOnly,
@@ -66,13 +73,6 @@ export function RichTextEditor({
     },
     [readOnly],
   );
-
-  // Keep external value in sync (e.g. when loading an existing task)
-  useEffect(() => {
-    if (!editor) return;
-    if ((editor.getHTML() || '') === (value || '')) return;
-    editor.commands.setContent(value || '', { emitUpdate: false });
-  }, [value, editor]);
 
   // Update direction when locale changes
   useEffect(() => {
@@ -146,6 +146,12 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             icon={<ListOrdered size={16} />}
           />
+          <ToolbarButton
+            label={t('checklist')}
+            active={editor.isActive('taskList')}
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            icon={<ListChecks size={16} />}
+          />
           <span className="mx-1 h-4 w-px bg-[color:var(--border)]" />
           <ToolbarButton
             label={editor.isActive('link') ? t('removeLink') : t('link')}
@@ -174,6 +180,9 @@ function ToolbarButton({
   return (
     <button
       type="button"
+      // Keep focus in the text: otherwise the button keeps it, the next
+      // keystrokes go nowhere and Space "presses" the button again.
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       title={label}
       aria-label={label}

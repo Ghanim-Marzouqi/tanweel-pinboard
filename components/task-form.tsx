@@ -6,7 +6,7 @@ import { useForm, useWatch, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTransition, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, FolderInput, Trash2, Save } from 'lucide-react';
 import { Button, buttonClass } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -20,8 +20,8 @@ import { FormattedDate } from '@/components/formatted-date';
 import { useConfirm } from '@/components/confirm-dialog';
 import { useToast } from '@/components/toast';
 import { sendJson } from '@/lib/client-api';
-import { STATUS_KEY, TASK_STATUSES } from '@/lib/status';
-import { TaskFormSchema, type TaskStatus } from '@/lib/validation';
+import { PRIORITY_KEY, STATUS_KEY, TASK_PRIORITIES, TASK_STATUSES } from '@/lib/status';
+import { TaskFormSchema, type TaskPriority, type TaskStatus } from '@/lib/validation';
 
 export interface ExistingAttachment {
   id: string;
@@ -41,11 +41,18 @@ interface TaskFormProps {
   canDelete?: boolean;
   /** Project owner or admin: may remove other people's comments and files. */
   canModerate?: boolean;
+  /** Active project members, for the assignee picker. */
+  people: { id: string; name: string }[];
+  /** Other projects this task can be moved to (edit mode). */
+  moveTargets?: { id: string; name: string }[];
   initial?: {
     id: string;
     title: string;
     descriptionHtml: string;
     status: TaskStatus;
+    priority: TaskPriority;
+    dueDate: string | null;
+    assignee: { id: string; name: string } | null;
     createdAt: string;
     updatedAt: string;
     createdByName: string;
@@ -57,6 +64,11 @@ type FormValues = {
   title: string;
   descriptionHtml: string;
   status: TaskStatus;
+  priority: TaskPriority;
+  /** "" = no due date */
+  dueDate: string;
+  /** "" = unassigned */
+  assigneeId: string;
 };
 
 export function TaskForm({
@@ -65,6 +77,8 @@ export function TaskForm({
   readOnly = false,
   canDelete = false,
   canModerate = false,
+  people,
+  moveTargets = [],
   initial,
 }: TaskFormProps) {
   const t = useTranslations();
@@ -86,8 +100,12 @@ export function TaskForm({
       title: initial?.title ?? '',
       descriptionHtml: initial?.descriptionHtml ?? '',
       status: initial?.status ?? 'Todo',
+      priority: initial?.priority ?? 'Medium',
+      dueDate: initial?.dueDate ?? '',
+      assigneeId: initial?.assignee?.id ?? '',
     },
   });
+  const [moveTo, setMoveTo] = useState('');
 
   const watchedStatus = useWatch({ control, name: 'status' });
 
@@ -152,6 +170,22 @@ export function TaskForm({
       } else {
         toast.error(t('toast.taskDeleteFailed'), { description: res.error });
       }
+    });
+  }
+
+  function handleMove() {
+    if (!initial || !moveTo) return;
+    startTransition(async () => {
+      const res = await sendJson<{ unassigned: boolean }>(`/api/tasks/${initial.id}`, 'PUT', {
+        projectId: moveTo,
+      });
+      if (!res.ok) {
+        toast.error(t('toast.taskSaveFailed'), { description: res.error });
+        return;
+      }
+      toast.success(res.data.unassigned ? t('toast.taskMovedUnassigned') : t('toast.taskMoved'));
+      setMoveTo('');
+      router.refresh();
     });
   }
 
@@ -239,19 +273,53 @@ export function TaskForm({
 
         <div className="space-y-4">
           <Card className="p-4 sm:p-6">
-            <div>
-              <Label htmlFor="status">{t('tasks.fields.status')}</Label>
-              <Select id="status" disabled={readOnly} {...register('status')}>
-                {TASK_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {t(`tasks.status.${STATUS_KEY[s]}`)}
-                  </option>
-                ))}
-              </Select>
-              <div className="mt-2">
-                <StatusBadge status={watchedStatus} />
+            <fieldset disabled={readOnly} className="space-y-4">
+              <div>
+                <Label htmlFor="status">{t('tasks.fields.status')}</Label>
+                <Select id="status" {...register('status')}>
+                  {TASK_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {t(`tasks.status.${STATUS_KEY[s]}`)}
+                    </option>
+                  ))}
+                </Select>
+                <div className="mt-2">
+                  <StatusBadge status={watchedStatus} />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <Label htmlFor="assigneeId">{t('tasks.fields.assignee')}</Label>
+                <Select id="assigneeId" {...register('assigneeId')}>
+                  <option value="">{t('tasks.fields.unassigned')}</option>
+                  {/* Keep a deactivated or departed assignee visible until changed. */}
+                  {initial?.assignee && !people.some((p) => p.id === initial.assignee!.id) && (
+                    <option value={initial.assignee.id}>{initial.assignee.name}</option>
+                  )}
+                  {people.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="priority">{t('tasks.fields.priority')}</Label>
+                <Select id="priority" {...register('priority')}>
+                  {TASK_PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {t(`tasks.priority.${PRIORITY_KEY[p]}`)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="dueDate">{t('tasks.fields.dueDate')}</Label>
+                <Input id="dueDate" type="date" {...register('dueDate')} />
+              </div>
+            </fieldset>
           </Card>
 
           {!readOnly && (
@@ -282,6 +350,33 @@ export function TaskForm({
                     {t('common.delete')}
                   </Button>
                 )}
+              </div>
+            </Card>
+          )}
+
+          {mode === 'edit' && !readOnly && moveTargets.length > 0 && (
+            <Card className="p-4">
+              <Label htmlFor="moveTo">{t('tasks.move.title')}</Label>
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <Select id="moveTo" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+                    <option value="">{t('tasks.move.selectProject')}</option>
+                    {moveTargets.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <Button
+                  variant="secondary"
+                  className="!h-11 shrink-0"
+                  onClick={handleMove}
+                  disabled={pending || !moveTo}
+                >
+                  <FolderInput size={16} />
+                  {t('tasks.move.move')}
+                </Button>
               </div>
             </Card>
           )}

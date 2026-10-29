@@ -5,10 +5,13 @@ import {
   canDeleteOwnedItem,
   canManageProject,
   canWriteInProject,
+  visibleProjectsWhere,
   visibleTasksWhere,
 } from '@/lib/access';
+import { dateToIso } from '@/lib/dates';
+import { projectPeople } from '@/lib/tasks';
 import { TaskForm } from '@/components/task-form';
-import type { TaskStatus } from '@/lib/validation';
+import type { TaskPriority, TaskStatus } from '@/lib/validation';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -24,12 +27,21 @@ export default async function TaskPage({ params }: PageProps) {
     include: {
       project: { select: { id: true, name: true, ownerId: true, isArchived: true } },
       createdBy: { select: { name: true } },
+      assignee: { select: { id: true, name: true } },
       attachments: { orderBy: { uploadedAt: 'asc' } },
     },
   });
   if (!task) notFound();
 
   const { project } = task;
+  const [people, moveTargets] = await Promise.all([
+    projectPeople(project.id),
+    prisma.project.findMany({
+      where: { ...visibleProjectsWhere(session.user), isArchived: false, id: { not: project.id } },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ]);
 
   return (
     <TaskForm
@@ -38,11 +50,16 @@ export default async function TaskPage({ params }: PageProps) {
       readOnly={!canWriteInProject(project)}
       canDelete={canDeleteOwnedItem(session.user, project, task.createdById)}
       canModerate={canManageProject(session.user, project)}
+      people={people}
+      moveTargets={moveTargets}
       initial={{
         id: task.id,
         title: task.title,
         descriptionHtml: task.descriptionHtml,
         status: task.status as TaskStatus,
+        priority: task.priority as TaskPriority,
+        dueDate: task.dueDate ? dateToIso(task.dueDate) : null,
+        assignee: task.assignee,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
         createdByName: task.createdBy.name,
