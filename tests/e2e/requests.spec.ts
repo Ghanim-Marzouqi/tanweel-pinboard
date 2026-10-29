@@ -1,3 +1,4 @@
+import ar from '../../messages/ar.json';
 import { test, expect, type Page, type APIResponse } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { E2E_ADMIN } from './credentials';
@@ -172,11 +173,12 @@ test('only admins can review, manage categories and link tasks; archived categor
     ).status(),
   ).toBe(403);
   await open(admin, '/admin/request-categories');
+  await admin.getByText(`Operations ${run}`, { exact: true }).click();
   const categoryForm = admin.getByRole('form', { name: `Operations ${run}` });
   await categoryForm.getByLabel('English name').fill(`Updated ${run}`);
   await categoryForm.getByLabel('Archived', { exact: true }).check();
   await categoryForm.getByRole('button', { name: 'Save category' }).click();
-  await expect(admin.getByRole('form', { name: `Updated ${run}` })).toBeVisible();
+  await expect(admin.getByText(`Updated ${run}`, { exact: true })).toBeVisible();
   expect(
     (
       await owner.request.post(`/api/projects/${project}/requests`, { data: payload('Archived selection') })
@@ -196,18 +198,26 @@ test('review and many-to-many links remain independent; cross-project linking is
   expect(
     (await admin.request.post(`/api/requests/${ownRequest}/links`, { data: { taskId: otherTask } })).status(),
   ).toBe(400);
+  await open(admin, `/requests/${ownRequest}`);
+  await admin.getByRole('button', { name: 'Link task', exact: true }).click();
+  await admin.getByLabel('Select an existing task', { exact: true }).selectOption(task);
+  await admin.getByRole('dialog').getByRole('button', { name: 'Link task', exact: true }).click();
+  await expect(admin.getByRole('link', { name: `Investigate ${run}`, exact: true })).toBeVisible();
   for (const id of [ownRequest, otherRequest, ownRequest])
     await json(await admin.request.post(`/api/requests/${id}/links`, { data: { taskId: task } }));
   let data = (await json(await admin.request.get(`/api/requests/${ownRequest}`))).request;
   expect(data.taskLinks).toHaveLength(1);
   expect(data.status).toBe('New');
   await open(admin, `/requests/${ownRequest}`);
+  await admin.getByRole('button', { name: 'Link task', exact: true }).click();
   const [searchResponse] = await Promise.all([
     admin.waitForResponse((response) => response.url().includes(`/api/projects/${project}/tasks?`)),
     admin.getByRole('button', { name: 'Search', exact: true }).click(),
   ]);
   expect(searchResponse.ok()).toBe(true);
   expect((await searchResponse.json()).tasks.map((item: { id: string }) => item.id)).toContain(task);
+  await admin.getByRole('dialog').press('Escape');
+  await expect(admin.getByRole('button', { name: 'Link task', exact: true })).toBeFocused();
   await admin.getByLabel('Review status', { exact: true }).selectOption('Accepted');
   await admin.getByRole('button', { name: 'Save review' }).click();
   await expect
@@ -245,11 +255,11 @@ test('create-and-link is atomic and retry-safe; multiple tasks can serve one req
     ),
   ).toHaveLength(1);
   await open(admin, `/requests/${ownRequest}`);
-  await admin.getByText('Create task and link', { exact: true }).first().click();
+  await admin.getByRole('button', { name: 'Create task and link', exact: true }).click();
   await admin.getByLabel('Task title', { exact: true }).fill(`UI linked ${run}`);
   await admin.getByLabel('Priority', { exact: true }).selectOption('High');
   await admin.getByLabel('Assignee', { exact: true }).selectOption(ownerId);
-  await admin.getByRole('button', { name: 'Create task and link', exact: true }).click();
+  await admin.getByRole('dialog').getByRole('button', { name: 'Create task and link', exact: true }).click();
   await expect(admin.getByRole('link', { name: `UI linked ${run}`, exact: true })).toBeVisible();
   expect(
     (
@@ -283,6 +293,52 @@ test('Arabic requests fit mobile; request-only projects cannot be deleted; archi
   await expect(owner.getByRole('heading', { name: 'النقاش والسجل' })).toBeVisible();
   expect(await owner.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await owner.screenshot({ path: 'test-results/requests-arabic-mobile.png', fullPage: true });
+  for (const width of [320, 390, 768]) {
+    await owner.setViewportSize({ width, height: 844 });
+    await open(owner, `/projects/${project}/requests`);
+    expect(await owner.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    if (width < 640) {
+      await expect(owner.getByRole('navigation', { name: ar.requests.statusViews })).toBeHidden();
+      await owner
+        .getByRole('combobox', { name: ar.requests.status, exact: true })
+        .selectOption('UnderReview');
+      await owner.getByRole('button', { name: ar.requests.filter, exact: true }).click();
+      await expect(owner).toHaveURL(/status=UnderReview/);
+      await expect(owner.getByRole('link', { name: new RegExp(`Own issue ${run}`) })).toBeVisible();
+    } else {
+      await expect(owner.getByRole('navigation', { name: ar.requests.statusViews })).toBeVisible();
+    }
+    const newButton = owner.getByRole('link', { name: ar.requests.new, exact: true });
+    const bounds = await newButton.boundingBox();
+    expect(bounds!.width).toBeGreaterThanOrEqual(44);
+    expect(bounds!.height).toBeGreaterThanOrEqual(44);
+    const filterButton = owner.getByRole('button', { name: ar.requests.filter, exact: true });
+    expect((await filterButton.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await owner.getByRole('textbox', { name: ar.requests.search }).fill('no-matching-request');
+    await filterButton.click();
+    await expect(owner.getByText(ar.requests.empty, { exact: true })).toBeVisible();
+    await owner.getByRole('link', { name: ar.requests.clearFilters, exact: true }).first().click();
+    await expect(owner.getByRole('textbox', { name: ar.requests.search })).toHaveValue('');
+    if (width === 390)
+      await owner.screenshot({ path: 'test-results/requests-list-arabic-mobile.png', fullPage: true });
+    await newButton.click();
+    await expect(owner.getByRole('heading', { name: ar.requests.new, exact: true })).toBeVisible();
+    expect(await owner.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await admin.setViewportSize({ width: 320, height: 844 });
+  await open(admin, `/requests/${ownRequest}`);
+  await admin.getByRole('button', { name: 'Language' }).click();
+  await expect(admin.locator('html')).toHaveAttribute('dir', 'rtl');
+  await admin.getByRole('button', { name: ar.requests.linkTask, exact: true }).click();
+  const dialog = admin.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  expect((await dialog.boundingBox())!.width).toBeLessThanOrEqual(320);
+  await dialog.getByRole('button', { name: ar.requests.createAndLink, exact: true }).click();
+  await expect(dialog.getByLabel(ar.requests.taskTitle, { exact: true })).toBeFocused();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await dialog.press('Escape');
+  await open(admin, '/admin/request-categories');
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await json(await admin.request.delete(`/api/projects/${project}/members/${colleagueId}`));
   expect((await colleague.request.get(`/api/requests/${otherRequest}`)).status()).toBe(404);
   const empty = (
