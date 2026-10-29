@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { E2E_ADMIN } from './credentials';
 import { newPage, open, signIn } from './helpers';
 import { emailsTo, waitForEmails } from './mail';
+import pg from 'pg';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -95,42 +96,63 @@ test('the morning summary lists overdue and due-today tasks', async () => {
   expect(email.text).toMatch(/Due today:[\s\S]*Due today/);
 });
 
-test('forgot password: emailed link sets a new password and works only once', async ({ browser }) => {
-  const visitor = await newPage(browser);
-  await open(visitor, '/login');
-  await visitor.getByRole('link', { name: 'Forgot password?' }).click();
-  // Client-side navigation: wait for the new page, not just the network.
-  await expect(visitor).toHaveURL(/\/forgot-password$/);
-  await expect(visitor.getByRole('heading', { name: 'Forgot your password?' })).toBeVisible();
-  await visitor.getByLabel('Username or email').fill(noor.username);
-  await visitor.getByRole('button', { name: 'Send reset link' }).click();
-  await expect(visitor.getByRole('status')).toContainText('a link is on its way');
+for (const identifier of ['username', 'email'] as const) {
+  test(`forgot password by ${identifier}: correct recipient, new password, single-use link`, async ({ browser }) => {
+    const previous = (await emailsTo(noor.email)).filter((e) => e.subject === 'Reset your Pinboard password');
+    const visitor = await newPage(browser);
+    await open(visitor, '/login');
+    await visitor.getByRole('link', { name: 'Forgot password?' }).click();
+    // Client-side navigation: wait for the new page, not just the network.
+    await expect(visitor).toHaveURL(/\/forgot-password$/);
+    await expect(visitor.getByRole('heading', { name: 'Forgot your password?' })).toBeVisible();
+    await visitor.getByLabel('Username or email').fill(identifier === 'email' ? ` ${noor.email.toUpperCase()} ` : noor.username);
+    await visitor.getByRole('button', { name: 'Send reset link' }).click();
+    await expect(visitor.getByRole('status')).toContainText('a link is on its way');
 
-  const [email] = await waitForEmails(noor.email, (e) => e.subject === 'Reset your Pinboard password');
-  const link = /https?:\/\/\S+\/reset-password\?token=[\w%-]+/.exec(email.text)![0];
-  const newPassword = `Noor-new-${run}`;
+    const received = await waitForEmails(noor.email, (e) => e.subject === 'Reset your Pinboard password', previous.length + 1);
+    const email = received.find((e) => !previous.some((old) => old.text === e.text))!;
+    expect(email.text).toContain(noor.username);
+    const link = /https?:\/\/\S+\/reset-password\?token=[\w%-]+/.exec(email.text)![0];
+    const newPassword = `Noor-${identifier}-${run}`;
 
-  await open(visitor, link);
-  await visitor.getByLabel('New password', { exact: true }).fill(newPassword);
-  await visitor.getByLabel('Confirm new password').fill(newPassword);
-  await visitor.getByRole('button', { name: 'Set new password' }).click();
-  await expect(visitor.getByRole('status')).toContainText('Your password has been changed');
+    await open(visitor, link);
+    await visitor.getByLabel('New password', { exact: true }).fill(newPassword);
+    await visitor.getByLabel('Confirm new password').fill(newPassword);
+    await visitor.getByRole('button', { name: 'Set new password' }).click();
+    await expect(visitor.getByRole('status')).toContainText('Your password has been changed');
 
-  // The temporary password is gone and the new one works (no forced change any more).
-  await signIn(visitor, noor.username, newPassword);
-  await expect.poll(() => new URL(visitor.url()).pathname).toBe('/');
+    // The temporary password is gone and the new one works (no forced change any more).
+    await signIn(visitor, noor.username, newPassword);
+    await expect.poll(() => new URL(visitor.url()).pathname).toBe('/');
 
-  // Reusing the link fails.
-  await open(visitor, link);
-  await visitor.getByLabel('New password', { exact: true }).fill(`Another-${run}-pw`);
-  await visitor.getByLabel('Confirm new password').fill(`Another-${run}-pw`);
-  await visitor.getByRole('button', { name: 'Set new password' }).click();
-  await expect(visitor.getByRole('alert').filter({ hasText: 'invalid or has expired' })).toBeVisible();
-  await visitor.context().close();
-});
+    // Reusing the link fails.
+    await open(visitor, link);
+    await visitor.getByLabel('New password', { exact: true }).fill(`Another-${run}-pw`);
+    await visitor.getByLabel('Confirm new password').fill(`Another-${run}-pw`);
+    await visitor.getByRole('button', { name: 'Set new password' }).click();
+    await expect(visitor.getByRole('alert').filter({ hasText: 'invalid or has expired' })).toBeVisible();
+    await visitor.context().close();
+  });
+}
 
 test('asking for an unknown account gives the same answer and sends nothing', async () => {
-  const res = await page.request.post('/api/password-reset/request', { data: { identifier: `nobody-${run}` } });
-  expect(res.status()).toBe(200);
-  expect(await res.json()).toEqual({ ok: true });
+  // Inspect the outbox directly: no queued email is stronger evidence than
+  // waiting briefly for the asynchronous sender to produce no captured file.
+  const url = new URL(process.env.E2E_DATABASE_URL || process.env.DATABASE_URL!);
+  if (!process.env.E2E_DATABASE_URL) url.pathname = '/pinboard_e2e';
+  if (!/_(e2e|test)$/.test(url.pathname)) throw new Error('Refusing non-test database');
+  const db = new pg.Client({ connectionString: url.toString() });
+  await db.connect();
+  try {
+    const count = async () => (await db.query("SELECT count(*)::int AS n FROM email_outbox WHERE subject = 'Reset your Pinboard password'")).rows[0].n;
+    const before = await count();
+    for (const identifier of [`nobody-${run}`, `nobody-${run}@example.test`]) {
+      const res = await page.request.post('/api/password-reset/request', { data: { identifier } });
+      expect(res.status()).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+      expect(await count()).toBe(before);
+    }
+  } finally {
+    await db.end();
+  }
 });

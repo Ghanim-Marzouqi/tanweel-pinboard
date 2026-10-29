@@ -23,9 +23,10 @@ export async function POST(req: NextRequest) {
     resetLimiter.recordFailure(identifier); // counts every request for this name
     const user = await prisma.user.findFirst({
       where: {
-        ...(identifier.includes('@') ? { email: identifier } : { username: identifier }),
-        isActive: true,
-        email: { not: null },
+        AND: [
+          identifier.includes('@') ? { email: identifier } : { username: identifier },
+          { isActive: true, email: { not: null } },
+        ],
       },
       select: { id: true, username: true, email: true, locale: true },
     });
