@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Plus, Search, Inbox, Paperclip, MessageSquare, ChevronRight } from 'lucide-react';
+import { useEffect, useState, useTransition } from 'react';
+import { Search, Inbox, Paperclip, MessageSquare, ChevronRight } from 'lucide-react';
 import { buttonClass } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Card } from '@/components/ui/card';
 import { FormattedDate } from '@/components/formatted-date';
 import type { TaskStatus } from '@/lib/validation';
+import { STATUS_KEY, TASK_STATUSES } from '@/lib/status';
 
 interface TaskRow {
   id: string;
@@ -25,17 +26,16 @@ interface TaskRow {
 }
 
 interface Props {
+  projectId: string;
   tasks: TaskRow[];
+  /** Per-status totals for the whole project (not just the filtered rows). */
+  counts: Record<TaskStatus, number>;
   initialFilters: { status?: TaskStatus; q: string };
+  /** False for archived projects. */
+  canCreate: boolean;
 }
 
-const STATUS_OPTIONS: TaskStatus[] = ['Open', 'InProgress', 'Resolved', 'Closed'];
-
-function statusKey(s: TaskStatus): string {
-  return s === 'InProgress' ? 'inProgress' : s.toLowerCase();
-}
-
-export function TaskListClient({ tasks, initialFilters }: Props) {
+export function TaskListClient({ projectId, tasks, counts, initialFilters, canCreate }: Props) {
   const t = useTranslations();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -48,7 +48,7 @@ export function TaskListClient({ tasks, initialFilters }: Props) {
       if (search.trim()) params.set('q', search.trim());
       if (status) params.set('status', status);
       const qs = params.toString();
-      startTransition(() => router.replace(`/tasks${qs ? `?${qs}` : ''}`));
+      startTransition(() => router.replace(`/projects/${projectId}${qs ? `?${qs}` : ''}`));
     }, 250);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,32 +56,10 @@ export function TaskListClient({ tasks, initialFilters }: Props) {
 
   const empty = tasks.length === 0;
 
-  const stats = useMemo(() => {
-    const counts: Record<TaskStatus, number> = {
-      Open: 0,
-      InProgress: 0,
-      Resolved: 0,
-      Closed: 0,
-    };
-    for (const task of tasks) counts[task.status]++;
-    return counts;
-  }, [tasks]);
-
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t('tasks.title')}</h1>
-          <p className="mt-1 text-sm text-[color:var(--text-muted)]">{t('tasks.subtitle')}</p>
-        </div>
-        <Link href="/tasks/new" className={buttonClass({ className: 'whitespace-nowrap' })}>
-          <Plus size={16} />
-          {t('tasks.addNew')}
-        </Link>
-      </div>
-
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        {STATUS_OPTIONS.map((s) => {
+        {TASK_STATUSES.map((s) => {
           const isActive = status === s;
           return (
             <button
@@ -96,7 +74,7 @@ export function TaskListClient({ tasks, initialFilters }: Props) {
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-ring)]`}
             >
               <StatusBadge status={s} />
-              <div className="mt-2 text-2xl font-semibold tracking-tight sm:mt-3">{stats[s]}</div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight sm:mt-3">{counts[s]}</div>
             </button>
           );
         })}
@@ -123,9 +101,9 @@ export function TaskListClient({ tasks, initialFilters }: Props) {
             aria-label={t('tasks.filters.status')}
           >
             <option value="">{t('common.all')} — {t('tasks.filters.status')}</option>
-            {STATUS_OPTIONS.map((s) => (
+            {TASK_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {t(`tasks.status.${statusKey(s)}`)}
+                {t(`tasks.status.${STATUS_KEY[s]}`)}
               </option>
             ))}
           </Select>
@@ -136,9 +114,11 @@ export function TaskListClient({ tasks, initialFilters }: Props) {
         <Card className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center sm:py-16">
           <Inbox size={36} className="text-[color:var(--text-faint)]" />
           <p className="text-sm text-[color:var(--text-muted)]">{t('tasks.empty')}</p>
-          <Link href="/tasks/new" className={buttonClass({})}>
-            {t('tasks.addNew')}
-          </Link>
+          {canCreate && (
+            <Link href={`/projects/${projectId}/tasks/new`} className={buttonClass({})}>
+              {t('tasks.addNew')}
+            </Link>
+          )}
         </Card>
       ) : (
         <>
@@ -223,13 +203,13 @@ export function TaskListClient({ tasks, initialFilters }: Props) {
                         <FormattedDate iso={n.createdAt} />
                       </td>
                       <td className="px-4 py-3 align-middle text-[color:var(--text-muted)]">
-                        <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <Paperclip size={14} className="text-[color:var(--text-faint)]" />
                           {t('tasks.table.attachments', { count: n.attachmentsCount })}
                         </span>
                       </td>
                       <td className="px-4 py-3 align-middle text-[color:var(--text-muted)]">
-                        <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                           <MessageSquare size={14} className="text-[color:var(--text-faint)]" />
                           {t('tasks.table.comments', { count: n.commentsCount })}
                         </span>

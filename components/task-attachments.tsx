@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSession } from 'next-auth/react';
 import { Paperclip, Upload, X, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { buttonClass } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -18,12 +19,24 @@ interface Props {
   existing: ExistingAttachment[];
   pendingFiles: File[];
   onPendingChange: (files: File[]) => void;
+  /** Archived project: list files only. */
+  readOnly?: boolean;
+  /** Project owner or admin: may remove anyone's files. */
+  canModerate?: boolean;
 }
 
 const ALLOWED = ALLOWED_UPLOAD_TYPES;
 const MAX = MAX_UPLOAD_BYTES;
 
-export function TaskAttachments({ mode, taskId, existing, pendingFiles, onPendingChange }: Props) {
+export function TaskAttachments({
+  mode,
+  taskId,
+  existing,
+  pendingFiles,
+  onPendingChange,
+  readOnly = false,
+  canModerate = false,
+}: Props) {
   const t = useTranslations('tasks.attachments');
   const tFields = useTranslations('tasks.fields');
   const tConfirm = useTranslations('confirm.removeAttachment');
@@ -32,6 +45,7 @@ export function TaskAttachments({ mode, taskId, existing, pendingFiles, onPendin
   const confirm = useConfirm();
   const toast = useToast();
   const router = useRouter();
+  const { data: session } = useSession();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -118,48 +132,50 @@ export function TaskAttachments({ mode, taskId, existing, pendingFiles, onPendin
     <div>
       <Label className="mb-1.5">{tFields('attachments')}</Label>
 
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsDragging(false);
-          if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-        }}
-        onClick={() => inputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+      {!readOnly && (
+        <div
+          onDragOver={(e) => {
             e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
-        className={cx(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-8 text-center transition-colors',
-          isDragging
-            ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)]'
-            : 'border-[color:var(--border-strong)] bg-[color:var(--surface-muted)] hover:bg-[color:var(--surface)]',
-        )}
-      >
-        <Upload size={20} className="text-[color:var(--text-faint)]" />
-        <p className="text-sm font-medium text-[color:var(--text)]">{t('drop')}</p>
-        <p className="text-xs text-[color:var(--text-faint)]">{t('hint')}</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ALLOWED.join(',')}
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files?.length) handleFiles(e.target.files);
-            e.target.value = '';
+            setIsDragging(true);
           }}
-        />
-      </div>
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+          }}
+          onClick={() => inputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          className={cx(
+            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-8 text-center transition-colors',
+            isDragging
+              ? 'border-[color:var(--accent)] bg-[color:var(--accent-soft)]'
+              : 'border-[color:var(--border-strong)] bg-[color:var(--surface-muted)] hover:bg-[color:var(--surface)]',
+          )}
+        >
+          <Upload size={20} className="text-[color:var(--text-faint)]" />
+          <p className="text-sm font-medium text-[color:var(--text)]">{t('drop')}</p>
+          <p className="text-xs text-[color:var(--text-faint)]">{t('hint')}</p>
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept={ALLOWED.join(',')}
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) handleFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
+        </div>
+      )}
 
       {allItems.length > 0 && (
         <div className="mt-3 space-y-2">
@@ -169,7 +185,11 @@ export function TaskAttachments({ mode, taskId, existing, pendingFiles, onPendin
                 key={item.attachment.id}
                 attachment={item.attachment}
                 taskId={taskId!}
-                onRemove={() => handleRemoveExisting(item.attachment.id)}
+                onRemove={
+                  !readOnly && (canModerate || item.attachment.uploadedById === session?.user?.id)
+                    ? () => handleRemoveExisting(item.attachment.id)
+                    : undefined
+                }
                 disabled={uploading}
               />
             ) : (
@@ -194,7 +214,7 @@ function ExistingAttachmentRow({
 }: {
   attachment: ExistingAttachment;
   taskId: string;
-  onRemove: () => void;
+  onRemove?: () => void;
   disabled: boolean;
 }) {
   const t = useTranslations('tasks.attachments');
@@ -224,16 +244,18 @@ function ExistingAttachmentRow({
       >
         {t('open')}
       </a>
-      <button
-        type="button"
-        onClick={onRemove}
-        disabled={disabled}
-        title={t('remove')}
-        aria-label={t('remove')}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[color:var(--text-muted)] hover:bg-[color:var(--danger-soft)] hover:text-[color:var(--danger)] disabled:opacity-40"
-      >
-        <Trash2 size={16} />
-      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          title={t('remove')}
+          aria-label={t('remove')}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[color:var(--text-muted)] hover:bg-[color:var(--danger-soft)] hover:text-[color:var(--danger)] disabled:opacity-40"
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
     </div>
   );
 }

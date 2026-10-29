@@ -20,14 +20,14 @@
       "heroTitle": "One team.\nClear priorities.",
       "identifier": "Username or email",
       "identifierPlaceholder": "e.g. ahmed",
-      "noAccount": "Don't have an account? Ask your administrator to create one."
+      "noAccount": "Don't have an account? Ask your administrator to create one.",
+      "remember": "Stay signed in"
     }
   },
   "tasks": {
     "title": "Tasks",
-    "subtitle": "Everything your team is working on",
     "addNew": "Add task",
-    "back": "Back to tasks",
+    "back": "Back to project",
     "empty": "No tasks yet. Add your first one to get started.",
     "fields": {
       "title": "Title",
@@ -41,10 +41,10 @@
       "createdBy": "Created by"
     },
     "status": {
-      "open": "Open",
-      "inProgress": "In Progress",
-      "resolved": "Resolved",
-      "closed": "Closed"
+      "todo": "To do",
+      "inProgress": "In progress",
+      "inReview": "In review",
+      "done": "Done"
     },
     "filters": {
       "status": "Status",
@@ -71,7 +71,8 @@
       "remove": "Remove",
       "download": "Download",
       "open": "Open"
-    }
+    },
+    "archivedNotice": "This project is archived, so its tasks are read-only."
   },
   "comments": {
     "title": "Comments",
@@ -113,7 +114,10 @@
     "no": "No",
     "actions": "Actions",
     "required": "Required",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "optional": "Optional",
+    "show": "Show",
+    "hide": "Hide"
   },
   "confirm": {
     "deleteComment": {
@@ -127,6 +131,22 @@
     "deleteTask": {
       "title": "Delete this task?",
       "description": "Attachments and comments on this task will also be removed. This can't be undone."
+    },
+    "deleteProject": {
+      "title": "Delete this project?",
+      "description": "The project and its member list will be removed. This can't be undone."
+    },
+    "archiveProject": {
+      "title": "Archive this project?",
+      "description": "It will be hidden from the sidebar and its tasks become read-only."
+    },
+    "removeMember": {
+      "title": "Remove {name} from the project?",
+      "description": "They will no longer see this project or its tasks."
+    },
+    "deactivateUser": {
+      "title": "Deactivate {name}?",
+      "description": "They will be signed out and can't sign in until reactivated. Their tasks and comments stay."
     }
   },
   "toast": {
@@ -138,7 +158,20 @@
     "taskSaved": "Changes saved",
     "taskDeleted": "Task deleted",
     "taskSaveFailed": "Couldn't save the task",
-    "taskDeleteFailed": "Couldn't delete the task"
+    "taskDeleteFailed": "Couldn't delete the task",
+    "projectCreated": "Project created",
+    "projectSaved": "Project saved",
+    "projectArchived": "Project archived",
+    "projectRestored": "Project restored",
+    "projectDeleted": "Project deleted",
+    "memberAdded": "Member added",
+    "memberRemoved": "Member removed",
+    "profileSaved": "Profile saved",
+    "passwordChanged": "Password changed",
+    "userCreated": "User created",
+    "userSaved": "User saved",
+    "passwordReset": "Temporary password set",
+    "saveFailed": "Couldn't save your changes"
   },
   "richText": {
     "bold": "Bold",
@@ -148,5 +181,130 @@
     "link": "Link",
     "linkPrompt": "Paste the URL",
     "removeLink": "Remove link"
+  },
+  "nav": {
+    "projects": "Projects",
+    "allProjects": "All projects",
+    "newProject": "New project",
+    "users": "Users",
+    "account": "My account",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "noProjects": "No projects yet"
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "Projects you're a member of",
+    "subtitleAdmin": "All projects in Pinboard",
+    "addNew": "New project",
+    "empty": "No projects yet. Create the first one to start adding tasks.",
+    "archived": "Archived",
+    "archivedBadge": "Archived",
+    "owner": "Owner",
+    "settings": "Settings",
+    "taskCount": "{count, plural, =0 {No tasks} =1 {1 task} other {# tasks}}",
+    "memberCount": "{count, plural, =1 {1 member} other {# members}}",
+    "openCount": "{count} open",
+    "fields": {
+      "name": "Project name",
+      "namePlaceholder": "e.g. Website redesign",
+      "description": "Description",
+      "descriptionPlaceholder": "What is this project about? (optional)"
+    },
+    "form": {
+      "createTitle": "New project",
+      "createHint": "You'll be the owner and can add members afterwards.",
+      "saveCreate": "Create project",
+      "creating": "Creating…"
+    }
+  },
+  "projectSettings": {
+    "title": "Project settings",
+    "back": "Back to project",
+    "details": "Details",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "members": "Members",
+    "membersHint": "Only members can see this project and its tasks. Admins can see every project.",
+    "addMember": "Add member",
+    "selectUser": "Choose a person…",
+    "add": "Add",
+    "remove": "Remove",
+    "ownerBadge": "Owner",
+    "noCandidates": "Everyone is already a member.",
+    "you": "(you)",
+    "archiveTitle": "Archive project",
+    "archiveHint": "Archived projects are hidden from the sidebar and become read-only. You can restore them at any time.",
+    "archive": "Archive project",
+    "unarchive": "Restore project",
+    "deleteTitle": "Delete project",
+    "deleteHint": "Only projects without tasks can be deleted. Archive projects that have tasks instead.",
+    "delete": "Delete project"
+  },
+  "account": {
+    "title": "My account",
+    "profile": "Profile",
+    "username": "Username",
+    "name": "Full name",
+    "email": "Email",
+    "emailHint": "Optional. You can sign in with it instead of your username.",
+    "saveProfile": "Save profile",
+    "saving": "Saving…",
+    "password": "Password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "changePassword": "Change password",
+    "changing": "Changing…",
+    "mustChangeTitle": "Choose your own password",
+    "mustChange": "The password you were given is temporary. Choose a new one to continue.",
+    "passwordHint": "At least {min} characters.",
+    "errors": {
+      "mismatch": "The passwords don't match.",
+      "tooShort": "Use at least {min} characters.",
+      "sameAsCurrent": "Choose a password different from the current one.",
+      "wrongCurrent": "Current password is incorrect.",
+      "tooManyAttempts": "Too many attempts. Try again in 15 minutes.",
+      "emailTaken": "That email is already used by another account.",
+      "invalidEmail": "Enter a valid email address."
+    }
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Create accounts and manage who can sign in",
+    "addUser": "Add user",
+    "fields": {
+      "username": "Username",
+      "usernameHint": "3–64 characters: lowercase letters, digits, dot, dash or underscore.",
+      "name": "Full name",
+      "email": "Email (optional)",
+      "role": "Role",
+      "password": "Temporary password",
+      "status": "Status",
+      "lastLogin": "Last sign-in"
+    },
+    "never": "Never",
+    "active": "Active",
+    "inactive": "Deactivated",
+    "pendingPassword": "Temporary password",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "resetPassword": "Reset password",
+    "generate": "Generate",
+    "save": "Save",
+    "saving": "Saving…",
+    "createTitle": "Add user",
+    "createHint": "Share the temporary password with the person privately. They'll choose their own password at first sign-in.",
+    "editTitle": "Edit {name}",
+    "resetTitle": "Reset password for {name}",
+    "resetHint": "They'll be signed out everywhere and must choose a new password at next sign-in.",
+    "you": "You",
+    "errors": {
+      "taken": "That username or email is already in use.",
+      "lastAdmin": "At least one active admin is required.",
+      "self": "You can't remove your own admin access or deactivate yourself.",
+      "invalid": "Check the highlighted fields."
+    }
   }
 }

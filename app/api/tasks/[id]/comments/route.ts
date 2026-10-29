@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireSession, badRequest, notFound } from '@/lib/api-auth';
+import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
+import { canWriteInProject } from '@/lib/access';
 import { CommentCreateSchema } from '@/lib/validation';
 import { COMMENT_INCLUDE } from '@/lib/tasks';
 
@@ -11,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!guard.ok) return guard.response;
   const { id } = await params;
 
-  const task = await prisma.task.findUnique({ where: { id }, select: { id: true } });
+  const task = await findVisibleTask(id, guard.session.user);
   if (!task) return notFound('Task not found');
 
   const comments = await prisma.taskComment.findMany({
@@ -27,8 +28,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!guard.ok) return guard.response;
   const { id } = await params;
 
-  const task = await prisma.task.findUnique({ where: { id }, select: { id: true } });
+  const task = await findVisibleTask(id, guard.session.user);
   if (!task) return notFound('Task not found');
+  if (!canWriteInProject(task.project)) return forbidden('Project is archived');
 
   const json = await req.json().catch(() => null);
   const parsed = CommentCreateSchema.safeParse(json);

@@ -20,14 +20,14 @@
   --success: #047857;
   --info: #0e7490;
 
-  --status-open-bg: #ecfeff;
-  --status-open-fg: #0e7490;
+  --status-todo-bg: #f4f4f1;
+  --status-todo-fg: #57534e;
   --status-progress-bg: #fffbeb;
   --status-progress-fg: #b45309;
-  --status-resolved-bg: #ecfdf5;
-  --status-resolved-fg: #047857;
-  --status-closed-bg: #f4f4f1;
-  --status-closed-fg: #57534e;
+  --status-review-bg: #eff6ff;
+  --status-review-fg: #1d4ed8;
+  --status-done-bg: #ecfdf5;
+  --status-done-fg: #047857;
 
   --role-admin-bg: #f5f3ff;
   --role-admin-fg: #6d28d9;

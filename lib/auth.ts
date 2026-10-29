@@ -6,15 +6,22 @@ import { loginLimiter } from '@/lib/rate-limit';
 import { LoginSchema } from '@/lib/validation';
 import type { Role } from '@/lib/roles';
 
-// How often a signed-in session re-reads the user row, so deactivating a user
-// or changing their role takes effect without waiting for the session to expire.
+// How often a signed-in session re-reads the user row, so deactivation, role
+// changes and password resets take effect without waiting for expiry.
 const REVALIDATE_MS = 60 * 1000;
+// "Stay signed in" keeps the session for the cookie lifetime (30 days);
+// otherwise it ends this long after sign-in.
+const REMEMBER_MAX_AGE_S = 30 * 24 * 60 * 60;
+const DEFAULT_SESSION_MS = 8 * 60 * 60 * 1000;
 
 interface AuthorizedUser extends User {
   id: string;
   username: string;
   name: string;
   role: Role;
+  sessionVersion: number;
+  mustChangePassword: boolean;
+  remember: boolean;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -25,11 +32,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         identifier: { label: 'Username or email', type: 'text' },
         password: { label: 'Password', type: 'password' },
+        remember: { label: 'Stay signed in', type: 'checkbox' },
       },
       async authorize(credentials): Promise<AuthorizedUser | null> {
         const parsed = LoginSchema.safeParse(credentials);
         if (!parsed.success) return null;
-        const { identifier, password } = parsed.data;
+        const { identifier, password, remember } = parsed.data;
 
         if (loginLimiter.isBlocked(identifier)) return null;
 
@@ -58,36 +66,55 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           username: user.username,
           role: user.role,
+          sessionVersion: user.sessionVersion,
+          mustChangePassword: user.mustChangePassword,
+          remember,
         };
       },
     }),
   ],
-  session: { strategy: 'jwt', maxAge: 60 * 60 * 8 },
+  session: { strategy: 'jwt', maxAge: REMEMBER_MAX_AGE_S },
   pages: { signIn: '/login' },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         const u = user as AuthorizedUser;
         token.userId = u.id;
         token.username = u.username;
         token.name = u.name;
         token.role = u.role;
+        token.sessionVersion = u.sessionVersion;
+        token.mustChangePassword = u.mustChangePassword;
+        token.expiresAt = u.remember ? undefined : Date.now() + DEFAULT_SESSION_MS;
         token.checkedAt = Date.now();
         return token;
       }
 
       if (!token.userId) return null;
-      if (Date.now() - (token.checkedAt ?? 0) < REVALIDATE_MS) return token;
+      if (token.expiresAt && Date.now() > token.expiresAt) return null;
+      // `update()` from the client (e.g. after editing the profile) re-reads
+      // the user immediately instead of waiting for the next revalidation.
+      if (trigger !== 'update' && Date.now() - (token.checkedAt ?? 0) < REVALIDATE_MS) {
+        return token;
+      }
 
       const current = await prisma.user.findUnique({
         where: { id: token.userId },
-        select: { username: true, name: true, role: true, isActive: true },
+        select: {
+          username: true,
+          name: true,
+          role: true,
+          isActive: true,
+          sessionVersion: true,
+          mustChangePassword: true,
+        },
       });
-      if (!current?.isActive) return null;
+      if (!current?.isActive || current.sessionVersion !== token.sessionVersion) return null;
 
       token.username = current.username;
       token.name = current.name;
       token.role = current.role;
+      token.mustChangePassword = current.mustChangePassword;
       token.checkedAt = Date.now();
       return token;
     },
@@ -96,6 +123,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.username = token.username ?? '';
       session.user.name = token.name ?? session.user.username;
       session.user.role = token.role ?? 'member';
+      session.user.mustChangePassword = token.mustChangePassword ?? false;
       return session;
     },
   },

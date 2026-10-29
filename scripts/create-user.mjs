@@ -24,9 +24,10 @@ import { config as loadEnv } from 'dotenv';
 import pg from 'pg';
 import { hash } from '@node-rs/argon2';
 
-for (const file of ['.env', '.env.development', '.env.local']) {
+// Real environment wins, then .env.local > .env.development > .env.
+for (const file of ['.env.local', '.env.development', '.env']) {
   const path = resolve(process.cwd(), file);
-  if (existsSync(path)) loadEnv({ path, override: true, quiet: true });
+  if (existsSync(path)) loadEnv({ path, quiet: true });
 }
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,63}$/;

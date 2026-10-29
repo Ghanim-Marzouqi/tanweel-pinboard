@@ -12,30 +12,7 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 echo "[pinboard] Ensuring database exists…"
-node -e '
-const { Client } = require("pg");
-(async () => {
-  const dbUrl = new URL(process.env.DATABASE_URL);
-  const dbName = decodeURIComponent(dbUrl.pathname.replace(/^\//, "").split("?")[0]);
-  if (!dbName) throw new Error("DATABASE_URL has no database name");
-  const adminUrl = new URL(dbUrl.toString());
-  adminUrl.pathname = "/postgres";
-  adminUrl.search = "";
-  const client = new Client({ connectionString: adminUrl.toString() });
-  await client.connect();
-  const { rows } = await client.query(
-    "SELECT 1 FROM pg_database WHERE datname = $1",
-    [dbName],
-  );
-  if (rows.length === 0) {
-    console.log(`[pinboard] Creating database ${dbName}`);
-    await client.query(`CREATE DATABASE "${dbName.replace(/"/g, "\"\"")}"`);
-  } else {
-    console.log(`[pinboard] Database ${dbName} already exists`);
-  }
-  await client.end();
-})().catch((e) => { console.error(e); process.exit(1); });
-'
+node ./scripts/ensure-db.mjs
 
 echo "[pinboard] Applying migrations…"
 node ./node_modules/prisma/build/index.js migrate deploy

@@ -9,7 +9,7 @@ describe('safeCallbackUrl', () => {
   it.each([null, '', 'https://evil.example', '//evil.example', '/\\evil.example', 'tasks'])(
     'falls back for %j',
     (value) => {
-      expect(safeCallbackUrl(value)).toBe('/tasks');
+      expect(safeCallbackUrl(value)).toBe('/projects');
     },
   );
 });

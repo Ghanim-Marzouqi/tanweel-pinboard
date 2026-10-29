@@ -43,7 +43,7 @@ export function formatDateTime(value: string | Date, locale: string): string {
 }
 
 /** Only follow same-origin paths after sign-in (never `//host`, `/\host` or absolute URLs). */
-export function safeCallbackUrl(value: string | null | undefined, fallback = '/tasks'): string {
+export function safeCallbackUrl(value: string | null | undefined, fallback = '/projects'): string {
   if (value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')) {
     return value;
   }

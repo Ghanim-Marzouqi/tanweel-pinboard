@@ -16,6 +16,7 @@ import { safeCallbackUrl } from '@/lib/utils';
 interface FormValues {
   identifier: string;
   password: string;
+  remember: boolean;
 }
 
 export default function LoginPage() {
@@ -33,7 +34,7 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { identifier: '', password: '' },
+    defaultValues: { identifier: '', password: '', remember: false },
   });
 
   const onSubmit = handleSubmit((values) => {
@@ -42,6 +43,7 @@ export default function LoginPage() {
       const res = await signIn('credentials', {
         identifier: values.identifier,
         password: values.password,
+        remember: String(values.remember),
         redirect: false,
       });
       if (!res || res.error) {
@@ -137,6 +139,15 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-muted)]">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-[color:var(--border-strong)] accent-[color:var(--accent)]"
+                {...register('remember')}
+              />
+              {t('remember')}
+            </label>
 
             {serverError && (
               <div

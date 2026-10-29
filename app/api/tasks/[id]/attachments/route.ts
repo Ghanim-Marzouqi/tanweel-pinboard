@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
-import { requireSession, badRequest, notFound } from '@/lib/api-auth';
+import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
+import { canWriteInProject } from '@/lib/access';
 import { putObject } from '@/lib/minio';
 import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES } from '@/lib/validation';
 
@@ -20,8 +21,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!guard.ok) return guard.response;
   const { id } = await params;
 
-  const task = await prisma.task.findUnique({ where: { id }, select: { id: true } });
+  const task = await findVisibleTask(id, guard.session.user);
   if (!task) return notFound('Task not found');
+  if (!canWriteInProject(task.project)) return forbidden('Project is archived');
 
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');

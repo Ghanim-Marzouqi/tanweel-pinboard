@@ -19,9 +19,9 @@ import { CommentsSection } from '@/components/comments-section';
 import { FormattedDate } from '@/components/formatted-date';
 import { useConfirm } from '@/components/confirm-dialog';
 import { useToast } from '@/components/toast';
-import { TaskCreateSchema, type TaskStatus } from '@/lib/validation';
-
-const STATUS_OPTIONS: TaskStatus[] = ['Open', 'InProgress', 'Resolved', 'Closed'];
+import { sendJson } from '@/lib/client-api';
+import { STATUS_KEY, TASK_STATUSES } from '@/lib/status';
+import { TaskFormSchema, type TaskStatus } from '@/lib/validation';
 
 export interface ExistingAttachment {
   id: string;
@@ -29,12 +29,18 @@ export interface ExistingAttachment {
   contentType: string;
   sizeBytes: number;
   uploadedAt: string;
+  uploadedById: string;
 }
 
 interface TaskFormProps {
   mode: 'create' | 'edit';
-  /** Only the creator or an admin may delete a task. */
+  project: { id: string; name: string };
+  /** Archived project: nothing can be changed. */
+  readOnly?: boolean;
+  /** Creator, project owner or admin. */
   canDelete?: boolean;
+  /** Project owner or admin: may remove other people's comments and files. */
+  canModerate?: boolean;
   initial?: {
     id: string;
     title: string;
@@ -53,13 +59,21 @@ type FormValues = {
   status: TaskStatus;
 };
 
-export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
+export function TaskForm({
+  mode,
+  project,
+  readOnly = false,
+  canDelete = false,
+  canModerate = false,
+  initial,
+}: TaskFormProps) {
   const t = useTranslations();
   const confirm = useConfirm();
   const toast = useToast();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const projectUrl = `/projects/${project.id}`;
 
   const {
     register,
@@ -67,11 +81,11 @@ export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
     control,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(TaskCreateSchema) as unknown as Resolver<FormValues>,
+    resolver: zodResolver(TaskFormSchema) as unknown as Resolver<FormValues>,
     defaultValues: {
       title: initial?.title ?? '',
       descriptionHtml: initial?.descriptionHtml ?? '',
-      status: initial?.status ?? 'Open',
+      status: initial?.status ?? 'Todo',
     },
   });
 
@@ -95,30 +109,23 @@ export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
     startTransition(async () => {
       try {
         if (mode === 'create') {
-          const res = await fetch('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(values),
-          });
-          if (!res.ok) throw new Error(await res.text());
-          const { task } = (await res.json()) as { task: { id: string } };
+          const res = await sendJson<{ task: { id: string } }>(
+            `/api/projects/${project.id}/tasks`,
+            'POST',
+            values,
+          );
+          if (!res.ok) throw new Error(res.error);
           if (pendingFiles.length) {
-            await uploadFiles(task.id, pendingFiles);
+            await uploadFiles(res.data.task.id, pendingFiles);
           }
           toast.success(t('toast.taskCreated'));
-          router.push('/tasks');
-          router.refresh();
         } else if (initial) {
-          const res = await fetch(`/api/tasks/${initial.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(values),
-          });
-          if (!res.ok) throw new Error(await res.text());
+          const res = await sendJson(`/api/tasks/${initial.id}`, 'PUT', values);
+          if (!res.ok) throw new Error(res.error);
           toast.success(t('toast.taskSaved'));
-          router.push('/tasks');
-          router.refresh();
         }
+        router.push(projectUrl);
+        router.refresh();
       } catch (err) {
         toast.error(t('toast.taskSaveFailed'), {
           description: err instanceof Error ? err.message : undefined,
@@ -137,13 +144,13 @@ export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
     });
     if (!ok) return;
     startTransition(async () => {
-      const res = await fetch(`/api/tasks/${initial.id}`, { method: 'DELETE' });
+      const res = await sendJson(`/api/tasks/${initial.id}`, 'DELETE');
       if (res.ok) {
         toast.success(t('toast.taskDeleted'));
-        router.push('/tasks');
+        router.push(projectUrl);
         router.refresh();
       } else {
-        toast.error(t('toast.taskDeleteFailed'));
+        toast.error(t('toast.taskDeleteFailed'), { description: res.error });
       }
     });
   }
@@ -152,11 +159,11 @@ export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
     <div className="space-y-5 sm:space-y-6">
       <div className="space-y-2">
         <Link
-          href="/tasks"
-          className="inline-flex items-center gap-2 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text)]"
+          href={projectUrl}
+          className="inline-flex max-w-full items-center gap-2 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--text)]"
         >
-          <ArrowLeft size={16} className="rtl:rotate-180" />
-          {t('tasks.back')}
+          <ArrowLeft size={16} className="shrink-0 rtl:rotate-180" />
+          <span className="truncate">{project.name}</span>
         </Link>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
@@ -175,9 +182,15 @@ export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
         </div>
       </div>
 
+      {readOnly && (
+        <p className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-muted)] px-4 py-3 text-sm text-[color:var(--text-muted)]">
+          {t('tasks.archivedNotice')}
+        </p>
+      )}
+
       <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] lg:gap-6">
         <Card className="p-4 sm:p-6">
-          <div className="space-y-5">
+          <fieldset disabled={readOnly} className="space-y-5">
             <div>
               <Label htmlFor="title">{t('tasks.fields.title')}</Label>
               <Input
@@ -204,73 +217,80 @@ export function TaskForm({ mode, canDelete = false, initial }: TaskFormProps) {
                     onChange={field.onChange}
                     placeholder={t('tasks.fields.descriptionPlaceholder')}
                     ariaLabel={t('tasks.fields.description')}
+                    readOnly={readOnly}
                   />
                 )}
               />
             </div>
+          </fieldset>
 
+          <div className="mt-5">
             <TaskAttachments
               taskId={initial?.id}
               existing={initial?.attachments ?? []}
               pendingFiles={pendingFiles}
               onPendingChange={setPendingFiles}
               mode={mode}
+              readOnly={readOnly}
+              canModerate={canModerate}
             />
           </div>
         </Card>
 
         <div className="space-y-4">
           <Card className="p-4 sm:p-6">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="status">{t('tasks.fields.status')}</Label>
-                <Select id="status" {...register('status')}>
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {t(`tasks.status.${s === 'InProgress' ? 'inProgress' : s.toLowerCase()}`)}
-                    </option>
-                  ))}
-                </Select>
-                <div className="mt-2">
-                  <StatusBadge status={watchedStatus} />
-                </div>
+            <div>
+              <Label htmlFor="status">{t('tasks.fields.status')}</Label>
+              <Select id="status" disabled={readOnly} {...register('status')}>
+                {TASK_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`tasks.status.${STATUS_KEY[s]}`)}
+                  </option>
+                ))}
+              </Select>
+              <div className="mt-2">
+                <StatusBadge status={watchedStatus} />
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex flex-col gap-2">
-              <Button type="submit" disabled={pending}>
-                <Save size={16} />
-                {pending
-                  ? mode === 'create'
-                    ? t('tasks.form.creating')
-                    : t('tasks.form.saving')
-                  : mode === 'create'
-                    ? t('tasks.form.saveCreate')
-                    : t('tasks.form.saveEdit')}
-              </Button>
-              <Link href="/tasks" className={buttonClass({ variant: 'secondary' })}>
-                {t('common.cancel')}
-              </Link>
-              {mode === 'edit' && canDelete && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleDelete}
-                  disabled={pending}
-                  className="!text-[color:var(--danger)] !border-[color:var(--danger)]/30 hover:!bg-[color:var(--danger-soft)] hover:!border-[color:var(--danger)]/50"
-                >
-                  <Trash2 size={16} />
-                  {t('common.delete')}
+          {!readOnly && (
+            <Card className="p-4">
+              <div className="flex flex-col gap-2">
+                <Button type="submit" disabled={pending}>
+                  <Save size={16} />
+                  {pending
+                    ? mode === 'create'
+                      ? t('tasks.form.creating')
+                      : t('tasks.form.saving')
+                    : mode === 'create'
+                      ? t('tasks.form.saveCreate')
+                      : t('tasks.form.saveEdit')}
                 </Button>
-              )}
-            </div>
-          </Card>
+                <Link href={projectUrl} className={buttonClass({ variant: 'secondary' })}>
+                  {t('common.cancel')}
+                </Link>
+                {mode === 'edit' && canDelete && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleDelete}
+                    disabled={pending}
+                    className="!text-[color:var(--danger)] !border-[color:var(--danger)]/30 hover:!bg-[color:var(--danger-soft)] hover:!border-[color:var(--danger)]/50"
+                  >
+                    <Trash2 size={16} />
+                    {t('common.delete')}
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )}
         </div>
       </form>
 
-      {mode === 'edit' && initial && <CommentsSection taskId={initial.id} />}
+      {mode === 'edit' && initial && (
+        <CommentsSection taskId={initial.id} readOnly={readOnly} canModerate={canModerate} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireSession, notFound } from '@/lib/api-auth';
+import { requireSession, notFound, findVisibleTask } from '@/lib/api-auth';
 import { getObjectStream } from '@/lib/minio';
 import { Readable } from 'node:stream';
 
@@ -11,6 +11,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!guard.ok) return guard.response;
   const { id, attachmentId } = await params;
 
+  const task = await findVisibleTask(id, guard.session.user);
+  if (!task) return notFound('Attachment not found');
   const attachment = await prisma.taskAttachment.findFirst({
     where: { id: attachmentId, taskId: id },
   });

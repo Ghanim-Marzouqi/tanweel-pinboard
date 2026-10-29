@@ -12,47 +12,90 @@ enum UserRole {
 }
 
 enum TaskStatus {
-  Open
+  Todo
   InProgress
-  Resolved
-  Closed
+  InReview
+  Done
 }
 
 /// Local account. Usernames and emails are stored lower-cased so lookups are
 /// case-insensitive. Users are deactivated rather than deleted, so their
 /// tasks, comments and uploads keep a valid author.
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  username     String    @unique @db.VarChar(64)
-  email        String?   @unique @db.VarChar(254)
-  name         String    @db.VarChar(120)
-  passwordHash String    @db.VarChar(255)
-  role         UserRole  @default(member)
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                 String    @id @default(uuid()) @db.Uuid
+  username           String    @unique @db.VarChar(64)
+  email              String?   @unique @db.VarChar(254)
+  name               String    @db.VarChar(120)
+  passwordHash       String    @db.VarChar(255)
+  role               UserRole  @default(member)
+  isActive           Boolean   @default(true)
+  /// Set when an admin creates the account or resets the password; the user
+  /// must choose their own password before using the app.
+  mustChangePassword Boolean   @default(false)
+  /// Bumped on password change/reset and deactivation; sessions carrying an
+  /// older value are rejected.
+  sessionVersion     Int       @default(0)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  tasksCreated Task[]
-  comments     TaskComment[]
-  attachments  TaskAttachment[]
+  projectsOwned  Project[]
+  memberships    ProjectMember[]
+  tasksCreated   Task[]
+  comments       TaskComment[]
+  attachments    TaskAttachment[]
 
   @@map("users")
+}
+
+/// Only members (and admins) can see a project and its tasks.
+model Project {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(120)
+  description String   @default("") @db.VarChar(2000)
+  /// Archived projects are read-only and hidden from the sidebar.
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     String   @db.Uuid
+
+  owner   User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  members ProjectMember[]
+  tasks   Task[]
+
+  @@index([ownerId])
+  @@map("projects")
+}
+
+/// The owner always has a membership row too.
+model ProjectMember {
+  projectId String   @db.Uuid
+  userId    String   @db.Uuid
+  addedAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
 }
 
 model Task {
   id              String           @id @default(uuid()) @db.Uuid
   title           String           @db.VarChar(200)
   descriptionHtml String           @db.Text
-  status          TaskStatus       @default(Open)
+  status          TaskStatus       @default(Todo)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  projectId       String           @db.Uuid
   createdById     String           @db.Uuid
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
   createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
   attachments     TaskAttachment[]
   comments        TaskComment[]
 
-  @@index([status])
+  @@index([projectId, status])
   @@index([createdAt(sort: Desc)])
   @@index([createdById])
   @@map("tasks")

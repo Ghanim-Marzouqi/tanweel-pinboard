@@ -22,7 +22,17 @@ interface Comment {
   author: { id: string; name: string; role: Role };
 }
 
-export function CommentsSection({ taskId }: { taskId: string }) {
+export function CommentsSection({
+  taskId,
+  readOnly = false,
+  canModerate = false,
+}: {
+  taskId: string;
+  /** Archived project: show the thread only. */
+  readOnly?: boolean;
+  /** Project owner or admin: may delete anyone's comment. */
+  canModerate?: boolean;
+}) {
   const t = useTranslations('comments');
   const tConfirm = useTranslations('confirm.deleteComment');
   const tCommon = useTranslations('common');
@@ -135,7 +145,8 @@ export function CommentsSection({ taskId }: { taskId: string }) {
         )}
         {comments?.map((c) => {
           const isOwn = session?.user?.id === c.author.id;
-          const canDelete = isOwn || session?.user?.role === 'admin';
+          const canEdit = !readOnly && isOwn;
+          const canDelete = !readOnly && (isOwn || canModerate);
           const edited = c.updatedAt !== c.createdAt;
           const isEditing = editingId === c.id;
           return (
@@ -160,7 +171,7 @@ export function CommentsSection({ taskId }: { taskId: string }) {
                 )}
                 {canDelete && !isEditing && (
                   <div className="ms-auto flex items-center gap-1">
-                    {isOwn && (
+                    {canEdit && (
                       <button
                         type="button"
                         onClick={() => {
@@ -222,7 +233,7 @@ export function CommentsSection({ taskId }: { taskId: string }) {
       </div>
 
       <div className="mt-5 flex flex-col gap-2">
-        {session?.user ? (
+        {readOnly ? null : session?.user ? (
           <>
             <Textarea
               value={draft}

@@ -3,8 +3,6 @@ import { hash, verify } from '@node-rs/argon2';
 // @node-rs/argon2 defaults to argon2id with m=19 MiB, t=2, p=1 — the OWASP
 // recommended baseline — so no tuning parameters are passed here.
 
-export const MIN_PASSWORD_LENGTH = 8;
-
 export function hashPassword(plain: string): Promise<string> {
   return hash(plain);
 }

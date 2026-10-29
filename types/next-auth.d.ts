@@ -8,6 +8,7 @@ declare module 'next-auth' {
       username: string;
       name: string;
       role: Role;
+      mustChangePassword: boolean;
     } & DefaultSession['user'];
   }
 }
@@ -17,6 +18,10 @@ declare module '@auth/core/jwt' {
     userId?: string;
     username?: string;
     role?: Role;
+    sessionVersion?: number;
+    mustChangePassword?: boolean;
+    /** Absolute expiry (ms) for sessions without "Stay signed in". */
+    expiresAt?: number;
     checkedAt?: number;
   }
 }

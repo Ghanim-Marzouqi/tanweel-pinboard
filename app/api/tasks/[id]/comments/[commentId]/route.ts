@@ -1,21 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireSession, badRequest, notFound, forbidden, isAdmin } from '@/lib/api-auth';
+import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
+import { canDeleteOwnedItem, canWriteInProject, type Actor } from '@/lib/access';
 import { CommentUpdateSchema } from '@/lib/validation';
 import { COMMENT_INCLUDE } from '@/lib/tasks';
 
 type Params = { params: Promise<{ id: string; commentId: string }> };
+
+async function load(taskId: string, commentId: string, actor: Actor) {
+  const task = await findVisibleTask(taskId, actor);
+  if (!task) return null;
+  const comment = await prisma.taskComment.findFirst({ where: { id: commentId, taskId } });
+  return comment ? { task, comment } : null;
+}
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const guard = await requireSession();
   if (!guard.ok) return guard.response;
   const { id, commentId } = await params;
 
-  const existing = await prisma.taskComment.findFirst({
-    where: { id: commentId, taskId: id },
-  });
-  if (!existing) return notFound('Comment not found');
-  if (existing.authorId !== guard.session.user.id) return forbidden('You can only edit your own comments');
+  const found = await load(id, commentId, guard.session.user);
+  if (!found) return notFound('Comment not found');
+  if (!canWriteInProject(found.task.project)) return forbidden('Project is archived');
+  if (found.comment.authorId !== guard.session.user.id) {
+    return forbidden('You can only edit your own comments');
+  }
 
   const json = await req.json().catch(() => null);
   const parsed = CommentUpdateSchema.safeParse(json);
@@ -34,12 +43,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!guard.ok) return guard.response;
   const { id, commentId } = await params;
 
-  const existing = await prisma.taskComment.findFirst({
-    where: { id: commentId, taskId: id },
-  });
-  if (!existing) return notFound('Comment not found');
-  if (existing.authorId !== guard.session.user.id && !isAdmin(guard.session)) {
-    return forbidden('You can only delete your own comments');
+  const found = await load(id, commentId, guard.session.user);
+  if (!found) return notFound('Comment not found');
+  if (!canDeleteOwnedItem(guard.session.user, found.task.project, found.comment.authorId)) {
+    return forbidden('Only the author, the project owner or an admin can delete this comment');
   }
 
   await prisma.taskComment.delete({ where: { id: commentId } });

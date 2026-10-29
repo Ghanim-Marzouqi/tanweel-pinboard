@@ -1,9 +1,13 @@
 import type { Prisma } from '@prisma/client';
 import type { TaskStatus } from '@/lib/validation';
 
-/** Shared filter for the task list page and `GET /api/tasks`. */
-export function taskListWhere(filters: { status?: TaskStatus; q?: string }): Prisma.TaskWhereInput {
+/** Shared filter for a project's task list page and `GET /api/projects/[id]/tasks`. */
+export function taskListWhere(
+  projectId: string,
+  filters: { status?: TaskStatus; q?: string },
+): Prisma.TaskWhereInput {
   return {
+    projectId,
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.q ? { title: { contains: filters.q, mode: 'insensitive' } } : {}),
   };
