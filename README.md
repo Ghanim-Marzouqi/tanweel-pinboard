@@ -120,11 +120,78 @@ The GitHub Actions workflow runs the same checks on a clean machine, but only wh
 - **TypeScript 7** (the native compiler) doesn't ship a JavaScript API yet, which ESLint and the Next.js build still need. Following Microsoft's guidance, `typescript` is aliased to `@typescript/typescript6` for those tools, and `@typescript/native` provides TypeScript 7's `tsc` for `npm run typecheck`. Remove the alias once typescript-eslint and Next.js support TypeScript 7.1's API.
 - **next-auth** v5 is still published as a beta; npm's `latest` tag points at the older v4.
 
-## Production notes
+## Production operations
 
-- Set `AUTH_URL=https://pinboard.tanweel.om` and terminate TLS at your reverse proxy in front of port 3000.
-- `AUTH_SECRET` signs session cookies; changing it signs everyone out.
-- The sign-in rate limiter keeps its state in memory, which is fine for the single app container in `docker-compose.yml`.
+Production uses `tanweel-production` (SSH), `/srv/tanweel-pinboard/current` (a release symlink), and the root-only `/srv/tanweel-pinboard/.env`. The public URL is **https://pinboard.tanweel.om**. Cloudflare proxies its A record to `169.58.241.86`; the existing Caddy container terminates origin TLS and forwards to `tanweel-pinboard-app:3000` on the dedicated `pinboard-proxy` network. Neither PostgreSQL nor the app publishes a host port. Caddy's Compose file persists its membership in that network.
+
+Use the production wrapper rather than the development Compose command:
+
+```bash
+ssh tanweel-production
+cd /srv/tanweel-pinboard
+current/ops/compose.sh ps
+current/ops/compose.sh logs --tail 100 app
+```
+
+`docker-compose.production.yml` overlays the base file, requires real SMTP and an explicit release image tag, and caps each app/database container's logs at 3 × 10 MB. Existing Caddy logs are capped at 5 × 10 MB. Keep one app container: its email worker and rate limiter are in-process. `AUTH_SECRET` rotation signs everyone out. After first-admin verification, remove `ADMIN_PASSWORD` from the runtime environment and recreate only the app.
+
+### Release and update
+
+1. Run `npm run check` locally with the development PostgreSQL running. CI remains manual-only.
+2. Export reviewed source into a new `/srv/tanweel-pinboard/releases/<release>` directory. Include only source; never upload `.env`, local databases, uploads, captured mail, `node_modules`, or build output. Record the source commit and archive SHA-256 in `RELEASE`.
+3. Back up the current version using `current/ops/backup.sh`. Keep the previous source directory, image and configuration.
+4. Build the new image using both Compose files and the root runtime environment, with a unique `PINBOARD_IMAGE` tag. Do not overwrite an earlier release tag.
+5. Set that tag in the root `.env`, switch `current` to the new release, and run `current/ops/compose.sh up -d --wait`. The entrypoint applies migrations before serving traffic.
+6. Verify public HTTPS, sign-in, Users, projects and attachment upload/download. Verify existing Tanweel services separately. Never run a broad `docker compose down`, prune shared networks, or remove volumes.
+
+Caddy's configuration is `/srv/tanweel-driver-registration/Caddyfile`; its container is `tanweel-driver-registration-caddy-1`. The Pinboard block is in `ops/Caddyfile.pinboard`. Back up the live configuration before editing, validate with `docker exec tanweel-driver-registration-caddy-1 caddy validate --config /etc/caddy/Caddyfile`, then use `caddy reload` with the same arguments. A reload does not restart other applications.
+
+For code-only rollback with a compatible schema, restore the previous release symlink and image tag and recreate the app. If migrations are incompatible, restore the matching database and uploads from the pre-update backup. Database restoration loses writes after that snapshot; choose and communicate the recovery point before doing it.
+
+### Nightly backups and restore verification
+
+`pinboard-backup.timer` runs at **02:30 Asia/Muscat** with up to two minutes of jitter, retaining **14 days** in `/var/backups/tanweel-pinboard`. It also catches a missed run after boot. The backup briefly stops the app to keep database rows and file contents consistent, restarts it even on failure, and saves PostgreSQL's custom-format dump, uploads, file checksums, source, release identity and runtime configuration. The directory and files are root-only because the dump contains private work and `runtime.env` contains secrets.
+
+```bash
+systemctl status pinboard-backup.timer
+systemctl list-timers pinboard-backup.timer
+journalctl -u pinboard-backup.service --since yesterday
+systemctl start pinboard-backup.service   # manual backup; brief app interruption
+/srv/tanweel-pinboard/current/ops/restore-test.sh /var/backups/tanweel-pinboard/<timestamp>
+```
+
+The restore test checks archive checksums, restores SQL into a disposable PostgreSQL 18 container with **no network**, restores uploads into a separate disposable volume, compares every file hash and attachment size, checks uid 1001 can write, and reports row counts. It never starts an email worker or touches production volumes, and cleans up its own containers and volumes.
+
+These are local server backups: **they do not protect against loss of the VPS/disk**. Off-server backup storage is intentionally deferred. Check the systemd service for failures; external failure notifications are not configured.
+
+### Recover production from a backup
+
+First run `restore-test.sh` on the selected backup. Take another backup of current production if it is healthy, preserve its runtime configuration, and schedule the interruption. Restore the matching source and image before the database. As root on the server:
+
+```bash
+ROOT=/srv/tanweel-pinboard
+SNAPSHOT=/var/backups/tanweel-pinboard/<verified-timestamp>
+C="$ROOT/current/ops/compose.sh"
+"$C" stop -t 60 app
+# Destructive recovery: the following replaces the current database.
+"$C" exec -T db sh -c 'dropdb --force -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+"$C" exec -T db sh -c 'pg_restore --exit-on-error --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$SNAPSHOT/database.dump"
+# Preserve current files outside the volume before replacing them.
+"$C" run --rm --no-deps -T --user 0 --entrypoint tar app -C /app/storage -czf - . > "$ROOT/uploads-before-restore.tar.gz"
+"$C" run --rm --no-deps -T --user 0 --entrypoint sh app -c 'find /app/storage -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +'
+"$C" run --rm --no-deps -T --user 0 --entrypoint tar app -C /app/storage -xzf - < "$SNAPSHOT/uploads.tar.gz"
+"$C" up -d --wait app
+```
+
+Retain the root runtime `.env` when restoring data on the same server. For a replacement host, restore `runtime.env` securely, the source archive, `RELEASE`, the Docker network, Caddy route and systemd units first; recreate the release image from its source and lockfile. Verify sign-in and download at least one restored attachment before declaring recovery complete. Keep backups and secrets out of Git.
+
+### Vikunja user import and retirement
+
+Only account identities are imported: usernames, names and email addresses. `ghanim` is the administrator; the other imported accounts are members. No old password hashes, projects, tasks or attachments are imported. Imported users select **Forgot password** at the new login page to set their password. No bulk invitation email is sent automatically.
+
+`scripts/import-vikunja-users.mjs users.json` validates a private JSON export and performs a dry run. Add `--apply` to import transactionally; reruns skip matching existing accounts and reject identity conflicts. Input fields are restricted to `username`, `name`, `email`, `status`, `language`; inactive source users require review. Delete temporary identity exports after verification.
+
+Retire the old tool only after live validation and Ghanim's confirmation. Save a final private Vikunja database/files/configuration archive first. Replace the `tasks.tanweel.om` Caddy block with a redirect to `https://pinboard.tanweel.om` (old task IDs have no matching Pinboard destination), then stop only `tanweel-tasks-web`, `tanweel-tasks`, and `tanweel-tasks-db`, preserving their volumes and configuration for rollback. Disable their restart policies while retired. The redirect keeps the old DNS record and TLS certificate useful. To roll back, restore the saved Caddy block, restart those three containers and restore their restart policies.
 
 ## Layout
 

@@ -9,3 +9,11 @@ README.md
 .vscode
 .idea
 *.log
+.e2e-mail
+.e2e-storage
+.mail
+storage
+test-results
+playwright-report
+coverage
+docs

@@ -1,0 +1,26 @@
+# Overlay: docker compose -f docker-compose.yml -f docker-compose.production.yml
+# No public host ports. Caddy reaches only the app through pinboard-proxy.
+services:
+  db:
+    ports: !reset []
+    networks: [default]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  app:
+    image: ${PINBOARD_IMAGE:?Set the immutable release image tag}
+    ports: !reset []
+    environment:
+      AUTH_URL: https://pinboard.tanweel.om
+      SMTP_HOST: ${SMTP_HOST:?Production requires SMTP}
+    networks:
+      default: {}
+      proxy:
+        aliases: [tanweel-pinboard-app]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  proxy:
+    external: true
+    name: pinboard-proxy

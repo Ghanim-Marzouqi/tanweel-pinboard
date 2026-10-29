@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly Pinboard backup at 02:30 Muscat
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Asia/Muscat
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
