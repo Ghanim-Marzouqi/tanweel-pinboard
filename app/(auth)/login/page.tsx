@@ -66,8 +66,8 @@ export default function LoginPage() {
               'linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 55%, #3b2a6b 100%)',
           }}
         >
-          <div className="inline-flex items-center gap-2">
-            <BrandMark className="!bg-white/15 ring-1 ring-white/30" />
+          <div className="inline-flex flex-col items-start gap-2">
+            <BrandMark variant="white" size={36} />
             <span className="text-base font-semibold tracking-tight">{tApp('brand')}</span>
           </div>
           <div>
@@ -78,7 +78,7 @@ export default function LoginPage() {
 
         <main className="p-6 sm:p-8">
           <div className="mb-6 flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 md:invisible">
+            <div className="inline-flex flex-col items-start gap-2 md:invisible">
               <BrandMark />
               <span className="text-base font-semibold tracking-tight">{tApp('brand')}</span>
             </div>

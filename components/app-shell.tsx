@@ -65,7 +65,9 @@ export function AppShell({ user, projects, minimal = false, children }: Props) {
             className="inline-flex shrink-0 items-center gap-2 rounded-lg text-[color:var(--text)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-ring)]"
           >
             <BrandMark />
-            <BrandName />
+            <span className="sr-only md:not-sr-only">
+              <BrandName />
+            </span>
           </Link>
 
           <div className="ms-auto flex items-center gap-2">
@@ -104,7 +106,7 @@ export function AppShell({ user, projects, minimal = false, children }: Props) {
               />
               <aside className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col bg-[color:var(--surface)] shadow-[var(--shadow-md)]">
                 <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
-                  <div className="inline-flex items-center gap-2">
+                  <div className="inline-flex flex-col items-start gap-1">
                     <BrandMark size={32} />
                     <BrandName />
                   </div>
