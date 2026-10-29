@@ -33,7 +33,14 @@ tar -C "$ROOT/current" -czf "$PART/source.tar.gz" .
 "$COMPOSE" exec -T db sh -c 'pg_restore --list' < "$PART/database.dump" > "$PART/database.contents"
 tar -tzf "$PART/uploads.tar.gz" > "$PART/uploads.contents"
 (cd "$PART" && sha256sum database.dump uploads.tar.gz uploads.sha256 runtime.env source.tar.gz RELEASE > SHA256SUMS)
-"$COMPOSE" start --wait --wait-timeout 120 app
+"$COMPOSE" start app
+APP_ID=$("$COMPOSE" ps -q app)
+for attempt in $(seq 1 60); do
+  STATUS=$(docker inspect --format '{{.State.Health.Status}}' "$APP_ID")
+  [[ "$STATUS" == healthy ]] && break
+  sleep 2
+done
+[[ "$STATUS" == healthy ]] || { echo 'App failed health check after backup' >&2; exit 1; }
 RESTART=0
 mv "$PART" "$DEST/$STAMP"
 # Only complete, date-named backups are subject to retention.

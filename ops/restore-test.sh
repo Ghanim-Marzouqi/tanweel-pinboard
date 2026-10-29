@@ -23,10 +23,10 @@ docker run -d --name "$DB" --network none --log-driver local \
  -e POSTGRES_PASSWORD="$PASSWORD" -e POSTGRES_DB=pinboard_restore_test \
  -v "$DB:/var/lib/postgresql" postgres:18-alpine >/dev/null
 for attempt in $(seq 1 60); do
- if docker exec "$DB" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+ if docker exec "$DB" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
  sleep 1
 done
-docker exec "$DB" pg_isready -U postgres >/dev/null
+docker exec "$DB" pg_isready -h 127.0.0.1 -U postgres >/dev/null
 docker exec -i "$DB" pg_restore --exit-on-error --no-owner --no-acl -U postgres -d pinboard_restore_test < "$BACKUP/database.dump"
 docker run --rm --network none --log-driver local -v "$UPLOADS:/restore" -v "$BACKUP:/backup:ro" \
  --entrypoint sh postgres:18-alpine -c 'set -e; tar -xzf /backup/uploads.tar.gz -C /restore; cd /restore; if test -s /backup/uploads.sha256; then sha256sum -c /backup/uploads.sha256; fi'
