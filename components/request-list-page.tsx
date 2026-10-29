@@ -97,8 +97,8 @@ export async function RequestListPage({
             {project ? <Folder size={15} aria-hidden /> : <Inbox size={15} aria-hidden />}
             <span>{project ? t('projectWorkspace') : t('allProjects')}</span>
           </div>
-          <h1 dir="auto" className="request-copy break-words text-2xl font-semibold tracking-tight">
-            {project?.name ?? t('requests')}
+          <h1 className="text-start break-words text-2xl font-semibold tracking-tight">
+            <bdi className="request-copy">{project?.name ?? t('requests')}</bdi>
           </h1>
           <p className="mt-2 flex items-start gap-1.5 text-sm text-[color:var(--text-muted)]">
             {session.user.role !== 'admin' && (
@@ -292,11 +292,8 @@ export async function RequestListPage({
                     </>
                   )}
                 </div>
-                <h2
-                  dir="auto"
-                  className="request-copy break-words font-semibold leading-snug group-hover:text-[color:var(--accent-strong)]"
-                >
-                  {r.title}
+                <h2 className="text-start break-words font-semibold leading-snug group-hover:text-[color:var(--accent-strong)]">
+                  <bdi className="request-copy">{r.title}</bdi>
                 </h2>
                 <p
                   dir="auto"

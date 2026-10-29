@@ -151,11 +151,8 @@ export function RequestDetail({
             {locale === 'ar' ? r.category.nameAr : r.category.nameEn}
           </span>
         </div>
-        <h1
-          dir="auto"
-          className="request-copy max-w-4xl break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl"
-        >
-          {r.title}
+        <h1 className="text-start max-w-4xl break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+          <bdi className="request-copy">{r.title}</bdi>
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[color:var(--text-muted)]">
           <span className="inline-flex items-center gap-2">
