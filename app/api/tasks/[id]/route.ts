@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
 import { canDeleteOwnedItem, canWriteInProject } from '@/lib/access';
 import { TaskUpdateSchema } from '@/lib/validation';
-import { removeFolder } from '@/lib/minio';
+import { removeFolder } from '@/lib/storage';
 
 type Params = { params: Promise<{ id: string }> };
 

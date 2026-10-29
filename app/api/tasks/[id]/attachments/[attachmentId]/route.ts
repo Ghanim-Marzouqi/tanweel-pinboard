@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
 import { canDeleteOwnedItem } from '@/lib/access';
-import { removeObject } from '@/lib/minio';
+import { removeObject } from '@/lib/storage';
 
 type Params = { params: Promise<{ id: string; attachmentId: string }> };
 

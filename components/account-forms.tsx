@@ -171,8 +171,10 @@ function PasswordForm({ username, forced = false }: { username: string; forced?:
         return;
       }
       if (forced) {
-        // Full page load: the client router cache still holds the earlier
-        // "redirect to /account" answers for the app's pages.
+        // Full page load on purpose: the client router cache still holds the
+        // earlier "redirect to /account" answers, so a soft navigation would
+        // bounce straight back here.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign('/projects');
         return;
       }

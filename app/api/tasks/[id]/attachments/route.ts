@@ -3,18 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
 import { canWriteInProject } from '@/lib/access';
-import { putObject } from '@/lib/minio';
+import { putObject, safeExtension } from '@/lib/storage';
 import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
-
-function fileExtension(name: string, mime: string): string {
-  const dot = name.lastIndexOf('.');
-  if (dot >= 0 && dot < name.length - 1) return name.slice(dot);
-  if (mime === 'application/pdf') return '.pdf';
-  if (mime.startsWith('image/')) return `.${mime.split('/')[1]}`;
-  return '';
-}
 
 export async function POST(req: NextRequest, { params }: Params) {
   const guard = await requireSession();
@@ -34,11 +26,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     return badRequest('Unsupported file type');
   }
 
-  const ext = fileExtension(file.name, file.type);
+  const ext = safeExtension(file.name, file.type);
   const storageKey = `${id}/${randomUUID()}${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  await putObject(storageKey, buffer, file.type);
+  await putObject(storageKey, buffer);
 
   const attachment = await prisma.taskAttachment.create({
     data: {

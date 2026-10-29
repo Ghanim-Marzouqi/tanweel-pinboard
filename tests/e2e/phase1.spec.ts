@@ -69,7 +69,7 @@ test('admin creates a user and two projects, sharing one', async ({ page }) => {
   });
 });
 
-test('member must change the temporary password, then sees only shared projects', async ({ browser }) => {
+test('member must change the temporary password, sees only shared projects, adds a task and a file', async ({ browser }) => {
   const page = await newPage(browser);
   await signIn(page, member.username, member.password);
 
@@ -111,6 +111,22 @@ test('member must change the temporary password, then sees only shared projects'
     await expect(page).toHaveURL(new RegExp(`${sharedProjectUrl}$`));
     const row = page.getByRole('row', { name: new RegExp(taskTitle) });
     await expect(row).toContainText('In review');
+  });
+
+  await test.step('attach a file and download it again', async () => {
+    await page.getByRole('link', { name: taskTitle }).click();
+    await page.waitForLoadState('networkidle');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'ملاحظات.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from(`hello from ${run}`),
+    });
+    const link = page.getByRole('link', { name: 'ملاحظات.txt' });
+    await expect(link).toBeVisible();
+    const res = await page.request.get((await link.getAttribute('href'))!);
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toBe(`hello from ${run}`);
+    expect(res.headers()['x-content-type-options']).toBe('nosniff');
   });
 
   await page.context().close();

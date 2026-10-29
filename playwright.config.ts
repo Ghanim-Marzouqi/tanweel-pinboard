@@ -51,7 +51,7 @@ export default defineConfig({
       E2E_ADMIN_PASSWORD: E2E_ADMIN.password,
       AUTH_URL: `http://localhost:${port}`,
       AUTH_SECRET: process.env.AUTH_SECRET ?? 'e2e-only-auth-secret-0123456789abcdef',
-      MINIO_BUCKET: 'pinboard-e2e',
+      UPLOADS_DIR: '.e2e-storage',
     },
   },
 });

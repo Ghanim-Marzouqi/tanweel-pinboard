@@ -1,0 +1,4 @@
+#!/bin/sh
+# Run the full check suite before every push (GitHub Actions is manual-only).
+# Skip in an emergency with: git push --no-verify
+exec sh scripts/check.sh

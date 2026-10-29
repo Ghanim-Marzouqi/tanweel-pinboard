@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession, notFound, findVisibleTask } from '@/lib/api-auth';
-import { getObjectStream } from '@/lib/minio';
+import { openObject } from '@/lib/storage';
 import { Readable } from 'node:stream';
 
 type Params = { params: Promise<{ id: string; attachmentId: string }> };
@@ -18,15 +18,17 @@ export async function GET(_req: NextRequest, { params }: Params) {
   });
   if (!attachment) return notFound('Attachment not found');
 
-  const stream = await getObjectStream(attachment.storageKey);
-  const webStream = Readable.toWeb(stream) as ReadableStream<Uint8Array>;
+  const file = await openObject(attachment.storageKey);
+  if (!file) return notFound('File is missing from storage');
+  const webStream = Readable.toWeb(file.stream) as ReadableStream<Uint8Array>;
 
   return new Response(webStream, {
     headers: {
       'Content-Type': attachment.contentType,
       'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(attachment.fileName)}`,
-      'Content-Length': String(attachment.sizeBytes),
+      'Content-Length': String(file.size),
       'Cache-Control': 'private, max-age=0, no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---------- Stage 1: install deps & generate Prisma client ----------
-FROM node:24-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache openssl
 
@@ -14,7 +14,7 @@ COPY tsconfig.json ./tsconfig.json
 RUN npx prisma generate
 
 # ---------- Stage 2: build the Next.js app ----------
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache openssl
 
@@ -26,7 +26,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---------- Stage 3: minimal runtime ----------
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache openssl
 ENV NODE_ENV=production
@@ -57,6 +57,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+
+# Uploaded attachments live here (mount the `uploads` volume on it). Created
+# with the runtime user's ownership so a fresh named volume inherits it.
+ENV UPLOADS_DIR=/app/storage
+RUN mkdir -p /app/storage && chown nextjs:nodejs /app/storage
 
 # First-admin bootstrap / `create-user` CLI (plain Node, uses pg + argon2)
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts

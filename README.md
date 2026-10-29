@@ -8,19 +8,20 @@ Pinboard started as the client-notes companion app in the OpenSky ERP repo and i
 
 ## Stack
 
-- Next.js 16 (App Router) + React 19 + TypeScript
+- Node.js 26 LTS
+- Next.js 16 (App Router) + React 19 + TypeScript 7 (see note below)
 - Tailwind CSS 4
 - Auth.js v5 with built-in accounts (argon2id password hashes, admin-created users, no self-registration)
-- Prisma 7 + PostgreSQL 16
-- MinIO (or any S3-compatible store) for attachments
+- Prisma 7 + PostgreSQL 18
+- Attachments stored as files on the server (`uploads` Docker volume)
 - Tiptap v3 rich-text editor (RTL-aware)
 - next-intl for English + Arabic
-- Vitest (unit) + Playwright (browser) tests, ESLint, GitHub Actions CI
+- Vitest (unit) + Playwright (browser) tests, ESLint 10, checks run locally before every push
 
 ## Run with Docker
 
 ```bash
-cp .env.example .env     # fill in POSTGRES_PASSWORD, AUTH_SECRET, MINIO_SECRET_KEY, ADMIN_PASSWORD
+cp .env.example .env     # fill in POSTGRES_PASSWORD, AUTH_SECRET, ADMIN_PASSWORD
 docker compose up -d --build
 ```
 
@@ -32,7 +33,7 @@ On start the container creates the database if needed, applies Prisma migrations
 
 ```bash
 cp .env.example .env     # fill in the secrets; DATABASE_URL must use the same POSTGRES_PASSWORD
-docker compose up -d db minio
+docker compose up -d db
 npm install
 npx prisma migrate deploy
 node scripts/create-user.mjs --bootstrap   # first admin from ADMIN_* in .env
@@ -47,6 +48,7 @@ npm run dev                                # http://localhost:3000
 | `npm run typecheck` | TypeScript, no emit |
 | `npm test` | Vitest unit tests |
 | `npm run test:e2e` | Playwright browser tests (run `npm run build` first; see below) |
+| `npm run check` | Everything above in one go (what runs before each push) |
 | `npm run db:migrate` | Create + apply a migration after editing `prisma/schema.prisma` |
 | `npm run user:create` | Create a user (see below) |
 
@@ -80,7 +82,19 @@ npm run build
 npm run test:e2e
 ```
 
-Playwright starts its own server on port 3100 against a separate `pinboard_e2e` database on the same Postgres (derived from `DATABASE_URL`, or set `E2E_DATABASE_URL`; the name must end in `_e2e` or `_test`). The test admin is created on the first run. Locally the tests use your installed Google Chrome; CI installs Chromium.
+Playwright starts its own server on port 3100 against a separate `pinboard_e2e` database on the same Postgres (derived from `DATABASE_URL`, or set `E2E_DATABASE_URL`; the name must end in `_e2e` or `_test`), with uploads in `.e2e-storage/`. The test admin is created on the first run. Locally the tests use your installed Google Chrome.
+
+## Checks before every push
+
+`npm install` points git at `.githooks/`, whose `pre-push` hook runs `npm run check`: lint, typecheck, unit tests, production build and browser tests (about a minute). The push is cancelled if anything fails. Start the database first (`docker compose up -d db`). In an emergency, `git push --no-verify` skips it.
+
+The GitHub Actions workflow runs the same checks on a clean machine, but only when started by hand (Actions → CI → Run workflow), so it doesn't use Actions minutes on every push.
+
+## Toolchain notes
+
+- **Node 26** is the target (`.nvmrc`, Docker image). Locally: `brew install node@26`.
+- **TypeScript 7** (the native compiler) doesn't ship a JavaScript API yet, which ESLint and the Next.js build still need. Following Microsoft's guidance, `typescript` is aliased to `@typescript/typescript6` for those tools, and `@typescript/native` provides TypeScript 7's `tsc` for `npm run typecheck`. Remove the alias once typescript-eslint and Next.js support TypeScript 7.1's API.
+- **next-auth** v5 is still published as a beta; npm's `latest` tag points at the older v4.
 
 ## Production notes
 
@@ -111,11 +125,14 @@ lib/
   auth.ts                  Auth.js config (credentials → users table, session checks)
   password.ts              argon2id hashing
   rate-limit.ts            sign-in failure limiter
+  storage.ts               attachment files on disk (path-safe)
   validation.ts            zod schemas
 scripts/
   create-user.mjs          user CLI + first-admin bootstrap
   ensure-db.mjs            create the database if missing
   e2e-server.sh            server used by the Playwright tests
+  check.sh                 all checks (pre-push hook, `npm run check`)
+.githooks/pre-push         runs scripts/check.sh before every push
 messages/{en,ar}.json      translations
 tests/                     Vitest unit tests; tests/e2e Playwright tests
 ```
@@ -125,9 +142,9 @@ tests/                     Vitest unit tests; tests/e2e Playwright tests
 Replaces the Vikunja instance at tasks.tanweel.om, kept deliberately simple:
 
 0. **Standalone app** (done): built-in accounts, Tanweel branding, own Docker setup, tests.
-1. **Users and projects** (done): Users page, My account, stay signed in, forced password change, members-only projects, To do / In progress / In review / Done, sidebar, browser tests + CI.
+1. **Users and projects** (done): Users page, My account, stay signed in, forced password change, members-only projects, To do / In progress / In review / Done, sidebar, browser tests, local pre-push checks.
 2. **Tasks and views**: one assignee, due date, priority (Low / Medium / High / Urgent), checklists, move a task between projects; List and Board views; "My tasks" home page; filters, search in descriptions, paging.
 3. **Email notifications**: assigned to you, @mentions, new comments, morning summary of overdue / due-today tasks, "Forgot password".
-4. **Go live** at pinboard.tanweel.om: HTTPS, nightly backups with a tested restore, pinned storage image, health checks; then retire tasks.tanweel.om.
+4. **Go live** at pinboard.tanweel.om: HTTPS, nightly backups of the database and `uploads` volume with a tested restore, health checks; then retire tasks.tanweel.om.
 
 Dates use Muscat time and weeks start on Sunday.
