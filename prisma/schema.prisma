@@ -42,6 +42,10 @@ model User {
   /// Bumped on password change/reset and deactivation; sessions carrying an
   /// older value are rejected.
   sessionVersion     Int       @default(0)
+  /// Language for emails ("en" | "ar"); updated when the user switches it.
+  locale             String    @default("en") @db.VarChar(5)
+  /// Morning summary of overdue / due-today tasks.
+  dailyDigest        Boolean   @default(true)
   lastLoginAt        DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -52,8 +56,60 @@ model User {
   tasksAssigned  Task[]           @relation("TaskAssignee")
   comments       TaskComment[]
   attachments    TaskAttachment[]
+  passwordResets PasswordResetToken[]
 
   @@map("users")
+}
+
+/// "Forgot password" links. Only a SHA-256 of the token is stored.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+enum EmailStatus {
+  Pending
+  Sending
+  Sent
+  Failed
+}
+
+/// Emails are queued here in the same request as the action that causes them
+/// and sent by the background sender (lib/email/outbox.ts), with retries.
+model EmailOutbox {
+  id        String      @id @default(uuid()) @db.Uuid
+  to        String      @db.VarChar(254)
+  subject   String      @db.VarChar(300)
+  html      String      @db.Text
+  text      String      @db.Text
+  status    EmailStatus @default(Pending)
+  attempts  Int         @default(0)
+  lastError String?     @db.Text
+  /// Not before this time (used for retry back-off).
+  sendAfter DateTime    @default(now())
+  lockedAt  DateTime?
+  sentAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  @@index([status, sendAfter])
+  @@map("email_outbox")
+}
+
+/// One row per day the morning summary was sent, so it goes out once.
+model DigestRun {
+  day       DateTime @id @db.Date
+  startedAt DateTime @default(now())
+
+  @@map("digest_runs")
 }
 
 /// Only members (and admins) can see a project and its tasks.

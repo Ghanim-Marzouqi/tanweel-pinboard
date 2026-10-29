@@ -41,8 +41,8 @@ interface TaskFormProps {
   canDelete?: boolean;
   /** Project owner or admin: may remove other people's comments and files. */
   canModerate?: boolean;
-  /** Active project members, for the assignee picker. */
-  people: { id: string; name: string }[];
+  /** Active project members, for the assignee picker and @mentions. */
+  people: { id: string; name: string; username: string }[];
   /** Other projects this task can be moved to (edit mode). */
   moveTargets?: { id: string; name: string }[];
   initial?: {
@@ -384,7 +384,7 @@ export function TaskForm({
       </form>
 
       {mode === 'edit' && initial && (
-        <CommentsSection taskId={initial.id} readOnly={readOnly} canModerate={canModerate} />
+        <CommentsSection taskId={initial.id} people={people} readOnly={readOnly} canModerate={canModerate} />
       )}
     </div>
   );

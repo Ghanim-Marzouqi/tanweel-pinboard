@@ -50,3 +50,13 @@ export const loginLimiter = (globalForLimiter.loginLimiter ??= createLoginLimite
   maxFailures: 10,
   windowMs: 15 * 60 * 1000,
 }));
+
+const globalForResetLimiter = globalThis as unknown as {
+  resetLimiter: ReturnType<typeof createLoginLimiter> | undefined;
+};
+
+/** "Forgot password" requests, per username/email. */
+export const resetLimiter = (globalForResetLimiter.resetLimiter ??= createLoginLimiter({
+  maxFailures: 5,
+  windowMs: 15 * 60 * 1000,
+}));

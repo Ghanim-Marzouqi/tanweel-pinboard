@@ -4,6 +4,7 @@ import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from
 import { canWriteInProject } from '@/lib/access';
 import { CommentCreateSchema } from '@/lib/validation';
 import { COMMENT_INCLUDE } from '@/lib/tasks';
+import { notifyComment, notifySafely } from '@/lib/notify';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,5 +45,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
     include: COMMENT_INCLUDE,
   });
+  await notifySafely(notifyComment(id, comment.body, guard.session.user));
   return NextResponse.json({ comment }, { status: 201 });
 }

@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react';
 import { useForm, useWatch, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
-import { KeyRound, Pencil, Plus, UserCheck, UserX, Wand2 } from 'lucide-react';
+import { KeyRound, MailCheck, Pencil, Plus, UserCheck, UserX, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
@@ -90,6 +90,14 @@ export function UsersAdmin({ users, currentUserId }: { users: AdminUserRow[]; cu
     });
   }
 
+  function sendTestEmail() {
+    startTransition(async () => {
+      const res = await sendJson<{ to: string }>('/api/admin/test-email', 'POST');
+      if (res.ok) toast.success(t('testEmailSent', { to: res.data.to }));
+      else toast.error(res.status === 400 ? t('testEmailNoAddress') : tToast('saveFailed'), { description: res.error });
+    });
+  }
+
   function closeAndRefresh() {
     setDialog(null);
     router.refresh();
@@ -102,10 +110,16 @@ export function UsersAdmin({ users, currentUserId }: { users: AdminUserRow[]; cu
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{t('title')}</h1>
           <p className="mt-1 text-sm text-[color:var(--text-muted)]">{t('subtitle')}</p>
         </div>
-        <Button onClick={() => setDialog({ kind: 'create' })}>
-          <Plus size={16} />
-          {t('addUser')}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={sendTestEmail} disabled={pending}>
+            <MailCheck size={16} />
+            {t('testEmail')}
+          </Button>
+          <Button onClick={() => setDialog({ kind: 'create' })}>
+            <Plus size={16} />
+            {t('addUser')}
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">

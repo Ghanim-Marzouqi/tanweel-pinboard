@@ -110,7 +110,7 @@ export function TaskFilters({ view, people }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,11rem),1fr))]">
         {view === 'list' && (
           <Select
             value={current.get('status') ?? ''}

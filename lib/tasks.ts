@@ -125,7 +125,7 @@ export async function isProjectMember(projectId: string, userId: string): Promis
 export function projectPeople(projectId: string) {
   return prisma.user.findMany({
     where: { isActive: true, memberships: { some: { projectId } } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, username: true },
     orderBy: { name: 'asc' },
   });
 }

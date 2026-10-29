@@ -52,6 +52,12 @@ export default defineConfig({
       AUTH_URL: `http://localhost:${port}`,
       AUTH_SECRET: process.env.AUTH_SECRET ?? 'e2e-only-auth-secret-0123456789abcdef',
       UPLOADS_DIR: '.e2e-storage',
+      // Emails are captured as files the tests read; no SMTP server needed.
+      MAIL_TRANSPORT: 'capture',
+      MAIL_CAPTURE_DIR: '.e2e-mail',
+      EMAIL_WORKER_INTERVAL_MS: '500',
+      // The tests trigger the morning summary themselves.
+      DAILY_DIGEST: 'off',
     },
   },
 });

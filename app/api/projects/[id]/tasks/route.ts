@@ -4,6 +4,7 @@ import { requireSession, badRequest, notFound, forbidden, findVisibleProject } f
 import { canWriteInProject } from '@/lib/access';
 import { isoToDate } from '@/lib/dates';
 import { descriptionFields } from '@/lib/html-text';
+import { notifyAssigned, notifySafely } from '@/lib/notify';
 import {
   isProjectMember,
   PAGE_SIZE,
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       createdById: guard.session.user.id,
     },
   });
+  if (assigneeId) await notifySafely(notifyAssigned(task.id, assigneeId, guard.session.user));
 
   return NextResponse.json({ task }, { status: 201 });
 }

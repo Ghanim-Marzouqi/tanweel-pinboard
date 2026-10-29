@@ -18,7 +18,13 @@ import { MIN_PASSWORD_LENGTH } from '@/lib/password-policy';
 import { AccountUpdateSchema, PasswordChangeSchema } from '@/lib/validation';
 
 interface Props {
-  user: { username: string; name: string; email: string | null; mustChangePassword: boolean };
+  user: {
+    username: string;
+    name: string;
+    email: string | null;
+    mustChangePassword: boolean;
+    dailyDigest: boolean;
+  };
 }
 
 export function AccountForms({ user }: Props) {
@@ -47,7 +53,7 @@ export function AccountForms({ user }: Props) {
   );
 }
 
-type ProfileValues = { name: string; email: string };
+type ProfileValues = { name: string; email: string; dailyDigest: boolean };
 
 function ProfileForm({ user }: Props) {
   const t = useTranslations('account');
@@ -64,7 +70,7 @@ function ProfileForm({ user }: Props) {
     formState: { errors, isDirty },
   } = useForm<ProfileValues>({
     resolver: zodResolver(AccountUpdateSchema) as unknown as Resolver<ProfileValues>,
-    defaultValues: { name: user.name, email: user.email ?? '' },
+    defaultValues: { name: user.name, email: user.email ?? '', dailyDigest: user.dailyDigest },
   });
 
   const onSubmit = handleSubmit((values) => {
@@ -111,6 +117,20 @@ function ProfileForm({ user }: Props) {
             </p>
           )}
         </div>
+        <fieldset className="rounded-lg border border-[color:var(--border)] p-4">
+          <legend className="px-1 text-sm font-medium">{t('notifications')}</legend>
+          <p className="text-sm text-[color:var(--text-muted)]">
+            {user.email ? t('notificationsHint') : t('noEmail')}
+          </p>
+          <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--accent)]"
+              {...register('dailyDigest')}
+            />
+            {t('dailyDigest')}
+          </label>
+        </fieldset>
         <div className="flex justify-end">
           <Button type="submit" disabled={pending || !isDirty}>
             <Save size={16} />

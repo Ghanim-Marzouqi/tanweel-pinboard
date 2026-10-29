@@ -21,7 +21,26 @@
       "identifier": "Username or email",
       "identifierPlaceholder": "e.g. ahmed",
       "noAccount": "Don't have an account? Ask your administrator to create one.",
-      "remember": "Stay signed in"
+      "remember": "Stay signed in",
+      "forgot": "Forgot password?"
+    },
+    "forgot": {
+      "title": "Forgot your password?",
+      "subtitle": "Enter your username or email. If your account has an email address, we'll send you a link to choose a new password.",
+      "submit": "Send reset link",
+      "sending": "Sending…",
+      "sent": "If an account with an email address matches, a link is on its way. Check your inbox and spam folder.",
+      "noEmail": "No email address on your account? Ask your administrator to reset your password.",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "submit": "Set new password",
+      "saving": "Saving…",
+      "done": "Your password has been changed. Sign in with your new password.",
+      "invalid": "This link is invalid or has expired.",
+      "requestNew": "Request a new link",
+      "signIn": "Sign in"
     }
   },
   "tasks": {
@@ -146,7 +165,8 @@
     "edited": "(edited)",
     "loginToComment": "Sign in to post a comment.",
     "loadFailed": "Couldn't load comments.",
-    "saveFailed": "Couldn't save your comment."
+    "saveFailed": "Couldn't save your comment.",
+    "mentionHint": "Type @ to mention someone. Ctrl/⌘ + Enter to post."
   },
   "roles": {
     "admin": "Admin",
@@ -328,7 +348,11 @@
       "tooManyAttempts": "Too many attempts. Try again in 15 minutes.",
       "emailTaken": "That email is already used by another account.",
       "invalidEmail": "Enter a valid email address."
-    }
+    },
+    "notifications": "Email notifications",
+    "notificationsHint": "Emails go to the address above when a task is assigned to you, when someone mentions you, and when your tasks get new comments.",
+    "noEmail": "Add an email address above to receive notifications.",
+    "dailyDigest": "Morning summary of my overdue and due-today tasks (Sunday–Thursday, 7:00)"
   },
   "users": {
     "title": "Users",
@@ -366,7 +390,10 @@
       "lastAdmin": "At least one active admin is required.",
       "self": "You can't remove your own admin access or deactivate yourself.",
       "invalid": "Check the highlighted fields."
-    }
+    },
+    "testEmail": "Send test email",
+    "testEmailSent": "Test email sent to {to}",
+    "testEmailNoAddress": "Add your email address in My account first."
   },
   "myTasks": {
     "title": "My tasks",
@@ -378,6 +405,44 @@
       "thisWeek": "Later this week",
       "later": "Later",
       "none": "No due date"
+    }
+  },
+  "email": {
+    "footer": "You're receiving this because you use Pinboard at Tanweel.",
+    "openTask": "Open task",
+    "project": "Project",
+    "priority": "Priority",
+    "due": "Due",
+    "assigned": {
+      "subject": "{actor} assigned you: {title}",
+      "intro": "{actor} assigned a task to you."
+    },
+    "mention": {
+      "subject": "{actor} mentioned you on: {title}",
+      "intro": "{actor} mentioned you in a comment:"
+    },
+    "comment": {
+      "subject": "New comment on: {title}",
+      "intro": "{actor} commented:"
+    },
+    "digest": {
+      "subject": "Your tasks for today ({count})",
+      "intro": "Good morning, {name}. Here are your tasks that need attention.",
+      "overdue": "Overdue",
+      "today": "Due today",
+      "openMyTasks": "Open My tasks",
+      "settingsHint": "You can turn off this morning summary in My account."
+    },
+    "reset": {
+      "subject": "Reset your Pinboard password",
+      "intro": "We received a request to reset the password for {username}.",
+      "button": "Choose a new password",
+      "expiry": "The link works once and expires in 1 hour.",
+      "ignore": "If you didn't ask for this, you can ignore this email; your password won't change."
+    },
+    "test": {
+      "subject": "Pinboard test email",
+      "intro": "Email is working. This test was sent from Pinboard by {name}."
     }
   }
 }

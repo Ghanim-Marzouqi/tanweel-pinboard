@@ -126,6 +126,7 @@ export const PasswordResetSchema = z.object({
 export const AccountUpdateSchema = z.object({
   name: displayName,
   email: optionalEmail,
+  dailyDigest: z.boolean().optional(),
 });
 
 export const PasswordChangeSchema = z
@@ -137,6 +138,15 @@ export const PasswordChangeSchema = z
     path: ['newPassword'],
     message: 'same_as_current',
   });
+
+export const PasswordResetRequestSchema = z.object({
+  identifier: z.string().trim().toLowerCase().min(1).max(254),
+});
+
+export const PasswordResetConfirmSchema = z.object({
+  token: z.string().min(20).max(200),
+  password: newPassword,
+});
 
 /** Sign-in accepts either the username or the email address. */
 export const LoginSchema = z.object({

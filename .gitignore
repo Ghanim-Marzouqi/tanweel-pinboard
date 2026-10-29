@@ -47,6 +47,8 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 
-# uploaded files (local dev / e2e)
+# uploaded files and captured emails (local dev / e2e)
 /storage/
 /.e2e-storage/
+/.mail/
+/.e2e-mail/

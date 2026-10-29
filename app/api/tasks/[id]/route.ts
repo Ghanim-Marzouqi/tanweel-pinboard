@@ -12,6 +12,7 @@ import { canDeleteOwnedItem, canWriteInProject } from '@/lib/access';
 import { isoToDate } from '@/lib/dates';
 import { descriptionFields } from '@/lib/html-text';
 import { isProjectMember } from '@/lib/tasks';
+import { notifyAssigned, notifySafely } from '@/lib/notify';
 import { TaskUpdateSchema } from '@/lib/validation';
 import { removeFolder } from '@/lib/storage';
 
@@ -81,6 +82,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
       ...(projectId !== existing.project.id ? { projectId } : {}),
     },
   });
+  if (nextAssignee && nextAssignee !== existing.assigneeId) {
+    await notifySafely(notifyAssigned(task.id, nextAssignee, guard.session.user));
+  }
   return NextResponse.json({ task, unassigned });
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -140,14 +141,19 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-muted)]">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-[color:var(--border-strong)] accent-[color:var(--accent)]"
-                {...register('remember')}
-              />
-              {t('remember')}
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[color:var(--text-muted)]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-[color:var(--border-strong)] accent-[color:var(--accent)]"
+                  {...register('remember')}
+                />
+                {t('remember')}
+              </label>
+              <Link href="/forgot-password" className="text-sm text-[color:var(--accent-strong)] hover:underline">
+                {t('forgot')}
+              </Link>
+            </div>
 
             {serverError && (
               <div

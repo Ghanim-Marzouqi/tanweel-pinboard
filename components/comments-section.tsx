@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { Send, Pencil, Trash2, X, Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { MentionTextarea, type MentionPerson } from '@/components/mention-textarea';
+import { splitMentions } from '@/lib/mentions';
 import { Card } from '@/components/ui/card';
 import { RoleBadge } from '@/components/role-badge';
 import { FormattedDate } from '@/components/formatted-date';
@@ -24,10 +26,13 @@ interface Comment {
 
 export function CommentsSection({
   taskId,
+  people,
   readOnly = false,
   canModerate = false,
 }: {
   taskId: string;
+  /** Project members, for @mention suggestions and highlighting. */
+  people: MentionPerson[];
   /** Archived project: show the thread only. */
   readOnly?: boolean;
   /** Project owner or admin: may delete anyone's comment. */
@@ -46,6 +51,7 @@ export function CommentsSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const usernames = new Set(people.map((p) => p.username));
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +231,17 @@ export function CommentsSection({
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--text)]">{c.body}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-[color:var(--text)]">
+                  {splitMentions(c.body, usernames).map((part, i) =>
+                    part.mention ? (
+                      <span key={i} className="rounded bg-[color:var(--accent-soft)] px-0.5 font-medium text-[color:var(--accent-strong)]">
+                        {part.text}
+                      </span>
+                    ) : (
+                      part.text
+                    ),
+                  )}
+                </p>
               )}
             </div>
           );
@@ -235,18 +251,15 @@ export function CommentsSection({
       <div className="mt-5 flex flex-col gap-2">
         {readOnly ? null : session?.user ? (
           <>
-            <Textarea
+            <MentionTextarea
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
+              people={people}
               placeholder={t('placeholder')}
-              rows={3}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  postComment();
-                }
-              }}
+              ariaLabel={t('placeholder')}
+              onSubmit={postComment}
             />
+            <p className="text-xs text-[color:var(--text-faint)]">{t('mentionHint')}</p>
             <div className="flex items-center justify-between">
               <span className="text-xs text-[color:var(--text-faint)]">
                 {session.user.name || session.user.username} · {' '}

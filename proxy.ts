@@ -11,7 +11,10 @@ export default auth((req) => {
   // Public paths
   if (
     pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/password-reset/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/icon')

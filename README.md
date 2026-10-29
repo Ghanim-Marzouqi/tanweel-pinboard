@@ -1,6 +1,6 @@
 # Pinboard · لوحة المهام
 
-Tanweel's internal project and task manager, served at **https://pinboard.tanweel.om**. Work is organised into projects that only their members can see. Each task has a title, rich-text description with checklists, status (To do / In progress / In review / Done), priority, due date, one assignee, file attachments and a comment thread. Projects show tasks as a filterable list or a drag-and-drop board, and the home page lists your own open tasks by due date. The whole UI is available in English and Arabic (right-to-left, Tajawal font).
+Tanweel's internal project and task manager, served at **https://pinboard.tanweel.om**. Work is organised into projects that only their members can see. Each task has a title, rich-text description with checklists, status (To do / In progress / In review / Done), priority, due date, one assignee, file attachments and a comment thread. Projects show tasks as a filterable list or a drag-and-drop board, and the home page lists your own open tasks by due date. People get emails when a task is assigned to them, when they're @mentioned, when their tasks get comments, and a morning summary of overdue and due-today work; "Forgot password" works by email. The whole UI is available in English and Arabic (right-to-left, Tajawal font).
 
 The app is deliberately simple: it's built for Tanweel's own projects, not as a general-purpose task tool.
 
@@ -75,6 +75,30 @@ docker compose exec app node scripts/create-user.mjs --username sara --name "Sar
 
 It prompts for the password (or reads `USER_PASSWORD`).
 
+## Email
+
+Emails are queued in the `email_outbox` table in the same request as the action that causes them, and a background sender inside the app (`instrumentation.ts` → `lib/email/worker.ts`) sends them every few seconds, retrying failures with back-off (1, 2, 4, 8, 16 minutes; then marked failed).
+
+| Email | Goes to |
+| --- | --- |
+| Assigned | The new assignee (not when you assign yourself) |
+| Mentioned | People `@username`-mentioned in a comment who can see the task |
+| New comment | The task's creator and assignee (unless already mentioned, never the author) |
+| Morning summary | Everyone with overdue or due-today open tasks; 07:00 Muscat time, Sunday–Thursday; can be switched off in My account |
+| Forgot password | The account's email; link valid for 1 hour, works once |
+
+Emails use the recipient's language (saved when they switch it in the app). Only active users with an email address receive anything.
+
+Configure SMTP with `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` (see `.env.example`); links in emails use `AUTH_URL`. Admins can check the settings with **Send test email** on the Users page (it goes to their own address). Without `SMTP_HOST`, emails are saved as JSON files in `.mail/` instead.
+
+For local development, Mailpit catches everything the app sends:
+
+```bash
+docker compose --profile dev up -d mail   # inbox at http://localhost:8025
+```
+
+and set `SMTP_HOST=localhost`, `SMTP_PORT=1025` in `.env`.
+
 ## Browser tests
 
 ```bash
@@ -82,7 +106,7 @@ npm run build
 npm run test:e2e
 ```
 
-Playwright starts its own server on port 3100 against a separate `pinboard_e2e` database on the same Postgres (derived from `DATABASE_URL`, or set `E2E_DATABASE_URL`; the name must end in `_e2e` or `_test`), with uploads in `.e2e-storage/`. The test admin is created on the first run. Locally the tests use your installed Google Chrome.
+Playwright starts its own server on port 3100 against a separate `pinboard_e2e` database on the same Postgres (derived from `DATABASE_URL`, or set `E2E_DATABASE_URL`; the name must end in `_e2e` or `_test`), with uploads in `.e2e-storage/` and emails captured to `.e2e-mail/`, where the tests read them. The test admin is created on the first run. Locally the tests use your installed Google Chrome.
 
 ## Checks before every push
 
@@ -131,6 +155,10 @@ lib/
   rate-limit.ts            sign-in failure limiter
   storage.ts               attachment files on disk (path-safe)
   tasks.ts                 task filters, sorting, summary shape
+  email/                   transport (SMTP or capture), templates, outbox, morning summary, sender
+  notify.ts                who gets which email
+  mentions.ts              @username parsing
+  password-reset.ts        hashed single-use reset tokens
   dates.ts                 Muscat dates, Sunday–Saturday weeks, due-date groups
   html-text.ts             search text + checklist progress from descriptions
   validation.ts            zod schemas
@@ -151,7 +179,7 @@ Replaces the Vikunja instance at tasks.tanweel.om, kept deliberately simple:
 0. **Standalone app** (done): built-in accounts, Tanweel branding, own Docker setup, tests.
 1. **Users and projects** (done): Users page, My account, stay signed in, forced password change, members-only projects, To do / In progress / In review / Done, sidebar, browser tests, local pre-push checks.
 2. **Tasks and views** (done): one assignee, due date, priority (Low / Medium / High / Urgent), checklists, move a task between projects; List and Board views; "My tasks" home page; filters, search in descriptions, paging; Tajawal font for Arabic.
-3. **Email notifications**: assigned to you, @mentions, new comments, morning summary of overdue / due-today tasks, "Forgot password".
+3. **Email notifications** (done): assigned to you, @mentions, new comments, morning summary of overdue / due-today tasks, "Forgot password", admin test email.
 4. **Go live** at pinboard.tanweel.om: HTTPS, nightly backups of the database and `uploads` volume with a tested restore, health checks; then retire tasks.tanweel.om.
 
 Dates use Muscat time and weeks start on Sunday.

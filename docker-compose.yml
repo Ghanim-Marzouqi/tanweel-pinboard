@@ -43,6 +43,13 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-Pinboard <no-reply@tanweel.om>}
+      DAILY_DIGEST_HOUR: ${DAILY_DIGEST_HOUR:-7}
     volumes:
       - uploads:/app/storage
     ports:
@@ -53,6 +60,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Local email inbox for development only: docker compose --profile dev up -d mail
+  # SMTP on localhost:1025, web inbox on http://localhost:8025
+  mail:
+    image: axllent/mailpit:v1.32
+    profiles: ["dev"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   pg-data:

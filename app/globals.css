@@ -47,6 +47,29 @@
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
+/* Type scale, a step larger than Tailwind's defaults. These are real CSS
+ * variables (not inlined), so the Arabic layout can enlarge them further
+ * below — Tajawal reads smaller than Latin text at the same size. */
+@theme {
+  --text-xs: 0.8125rem; /* 13px */
+  --text-sm: 0.9375rem; /* 15px */
+  --text-base: 1.0625rem; /* 17px */
+  --text-lg: 1.1875rem; /* 19px */
+  --text-xl: 1.3125rem; /* 21px */
+  --text-2xl: 1.5625rem; /* 25px */
+  --text-3xl: 1.9375rem; /* 31px */
+}
+
+[dir="rtl"] {
+  --text-xs: 0.875rem; /* 14px */
+  --text-sm: 1rem; /* 16px */
+  --text-base: 1.125rem; /* 18px */
+  --text-lg: 1.25rem; /* 20px */
+  --text-xl: 1.375rem; /* 22px */
+  --text-2xl: 1.625rem; /* 26px */
+  --text-3xl: 2rem; /* 32px */
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -105,6 +128,10 @@
     }
   }
 
+  body {
+    font-size: var(--text-base);
+  }
+
   [dir="rtl"] body {
     font-family: var(--font-arabic), "Noto Sans Arabic", ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
@@ -115,7 +142,7 @@
   min-height: 10rem;
   padding: 0.75rem 1rem;
   outline: none;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.6;
   word-break: break-word;
 }

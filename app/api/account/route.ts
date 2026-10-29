@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest) {
     const user = await prisma.user.update({
       where: { id: guard.session.user.id },
       data: parsed.data,
-      select: { name: true, email: true },
+      select: { name: true, email: true, dailyDigest: true },
     });
     return NextResponse.json({ user });
   } catch (err) {
