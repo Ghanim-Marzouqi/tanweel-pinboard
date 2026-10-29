@@ -122,7 +122,7 @@ The GitHub Actions workflow runs the same checks on a clean machine, but only wh
 
 ## Production operations
 
-Production uses `tanweel-production` (SSH), `/srv/tanweel-pinboard/current` (a release symlink), and the root-only `/srv/tanweel-pinboard/.env`. The public URL is **https://pinboard.tanweel.om**. Cloudflare proxies its A record to `169.58.241.86`; the existing Caddy container terminates origin TLS and forwards to `tanweel-pinboard-app:3000` on the dedicated `pinboard-proxy` network. Neither PostgreSQL nor the app publishes a host port. Caddy's Compose file persists its membership in that network.
+Production uses `tanweel-production` (SSH), `/srv/tanweel-pinboard/current` (a release symlink), and the root-only `/srv/tanweel-pinboard/.env`. The public URL is **https://pinboard.tanweel.om**. Cloudflare proxies its A record to `169.58.241.86`; the existing Caddy container terminates origin TLS and forwards to `tanweel-pinboard-app:3000` on the dedicated `pinboard-proxy` network. Neither PostgreSQL nor the app publishes a host port. Caddy's Compose file persists its membership in that network. Shared Caddy upstreams must use unique container names or aliases: Pinboard uses `tanweel-pinboard-app:3000`, and driver registration uses `tanweel-driver-registration-app-1:3000`. The generic Compose alias `app` exists on both networks and must not be used by the shared proxy.
 
 Use the production wrapper rather than the development Compose command:
 
@@ -187,11 +187,17 @@ Retain the root runtime `.env` when restoring data on the same server. For a rep
 
 ### Vikunja user import and retirement
 
-Only account identities are imported: usernames, names and email addresses. `ghanim` is the administrator; the other imported accounts are members. No old password hashes, projects, tasks or attachments are imported. Imported users select **Forgot password** at the new login page to set their password. No bulk invitation email is sent automatically.
+Only account identities are imported: usernames, names and email addresses. `ghanim` is the administrator; the other imported accounts are members. No old password hashes, projects, tasks or attachments are imported. Imported users select **Forgot password** at the new login page to set their password. No bulk invitation email is sent automatically. The go-live import created 13 accounts; at Ghanim's request the unused `tanweel` member account and its reset tokens were subsequently permanently deleted from live Pinboard, leaving 12 users (one administrator, 11 members). The separate SMTP configuration remains `Pinboard <tanweelapp@gmail.com>`; sending email does not require a Pinboard account for that address.
 
 `scripts/import-vikunja-users.mjs users.json` validates a private JSON export and performs a dry run. Add `--apply` to import transactionally; reruns skip matching existing accounts and reject identity conflicts. Input fields are restricted to `username`, `name`, `email`, `status`, `language`; inactive source users require review. Delete temporary identity exports after verification.
 
-Retire the old tool only after live validation and Ghanim's confirmation. Save a final private Vikunja database/files/configuration archive first. Replace the `tasks.tanweel.om` Caddy block with a redirect to `https://pinboard.tanweel.om` (old task IDs have no matching Pinboard destination), then stop only `tanweel-tasks-web`, `tanweel-tasks`, and `tanweel-tasks-db`, preserving their volumes and configuration for rollback. Disable their restart policies while retired. The redirect keeps the old DNS record and TLS certificate useful. To roll back, restore the saved Caddy block, restart those three containers and restore their restart policies.
+Vikunja was retired on **29 October 2026**, after Ghanim confirmed a successful password reset/sign-in and explicitly approved retirement. `https://tasks.tanweel.om` now returns an uncached **302** to `https://pinboard.tanweel.om`; old paths and query strings are discarded because old task IDs have no matching destination. HTTP first redirects to HTTPS. The old DNS and TLS remain active.
+
+Only `tanweel-tasks-web`, `tanweel-tasks`, and `tanweel-tasks-db` were stopped. Their runtime restart policies and `/srv/tanweel-tasks/compose.yaml` are set to `no`; containers, images, database volume, uploads and configuration are retained. Do not run `down -v` or prune them. Other containers retained their IDs and start times.
+
+The private retirement archive is `/var/backups/tanweel-vikunja-retired/20261029T124209Z` (not part of the rolling Pinboard backup retention). It contains pre-cutover and final SQL/files/configuration snapshots, Caddy/Compose rollback files and `SHA256SUMS`. The final dump was taken after stopping both writers and restored successfully in an isolated PostgreSQL 16 container: 13 historical users, 13 projects and 9 tasks. Those historical projects/tasks were **not** migrated to Pinboard. Historical archives preserve the old account records; removing an account from live Pinboard does not rewrite backups.
+
+For an authorized rollback, restore `compose.before.yaml` to `/srv/tanweel-tasks/compose.yaml`, restore `unless-stopped` on the three old containers, start the database and wait for readiness, then start the API and web containers. Restore the old hostname block from `Caddyfile.rollback-vikunja`, validate Caddy and hot-reload it, then verify the old service. This prepared rollback configuration retains Pinboard and the corrected driver-registration upstream. If unrelated proxy changes have happened since retirement, merge only the old hostname block into the current Caddyfile instead of replacing the whole file. The retained volume can be started directly; use `final.dump` and `final-directory.tar.gz` only if data recovery is required.
 
 ## Layout
 
@@ -247,6 +253,6 @@ Replaces the Vikunja instance at tasks.tanweel.om, kept deliberately simple:
 1. **Users and projects** (done): Users page, My account, stay signed in, forced password change, members-only projects, To do / In progress / In review / Done, sidebar, browser tests, local pre-push checks.
 2. **Tasks and views** (done): one assignee, due date, priority (Low / Medium / High / Urgent), checklists, move a task between projects; List and Board views; "My tasks" home page; filters, search in descriptions, paging; Tajawal font for Arabic.
 3. **Email notifications** (done): assigned to you, @mentions, new comments, morning summary of overdue / due-today tasks, "Forgot password", admin test email.
-4. **Go live** at pinboard.tanweel.om: HTTPS, nightly backups of the database and `uploads` volume with a tested restore, health checks; then retire tasks.tanweel.om.
+4. **Go live — completed 29 October 2026:** Pinboard serves HTTPS, real email and administrator sign-in are verified, nightly database/uploads backups and restore tests are in place, logs are bounded, and tasks.tanweel.om redirects to Pinboard after approved Vikunja retirement.
 
 Dates use Muscat time and weeks start on Sunday.
