@@ -17,7 +17,10 @@ export default auth((req) => {
     pathname.startsWith('/api/password-reset/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    pathname.startsWith('/icon')
+    pathname.startsWith('/icon') ||
+    pathname === '/apple-icon.png' ||
+    pathname === '/brand/tanweel-purple.png' ||
+    pathname === '/brand/tanweel-white.png'
   ) {
     return NextResponse.next();
   }
