@@ -580,5 +580,17 @@
     "deleteHint": "Only requests with no linked tasks can be deleted.",
     "deleteLinkedHint": "Unlink all tasks before deleting this request.",
     "deleteConfirm": "Permanently delete this request, including its comments, history, and attachments? This cannot be undone."
+  },
+  "pwa": {
+    "install": "Install Pinboard",
+    "intro": "Keep your team workspace one tap away on your home screen.",
+    "installNow": "Install app",
+    "iphone": "iPhone / iPad",
+    "iphoneSteps": "Open Pinboard in Safari. Tap Share, then Add to Home Screen. Keep Open as Web App enabled if shown, then tap Add.",
+    "android": "Android / desktop",
+    "androidSteps": "Open Pinboard in Chrome or Edge. Use Install app above when available, or choose Install app / Add to Home screen from the browser menu.",
+    "onlineHint": "Use your existing Pinboard account. An internet connection is required to view and save work.",
+    "offline": "You’re offline. Reconnect before saving changes.",
+    "close": "Got it"
   }
 }

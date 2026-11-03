@@ -10,3 +10,6 @@ Official assets downloaded unchanged from https://tanweel.om on 29 October 2026:
 Preserve the original aspect ratio and colours. Use the white wordmark on dark
 surfaces and the purple wordmark on light surfaces. The application name remains
 Pinboard / لوحة المهام; the logo identifies Tanweel.
+
+PWA icons in `../pwa/` are 192px and 512px resizes of the official square
+`app/icon.png`, preserving its artwork and background.

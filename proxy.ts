@@ -19,6 +19,11 @@ export default auth((req) => {
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/icon') ||
     pathname === '/apple-icon.png' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/sw.js' ||
+    pathname === '/offline.html' ||
+    pathname === '/pwa/icon-192.png' ||
+    pathname === '/pwa/icon-512.png' ||
     pathname === '/brand/tanweel-purple.png' ||
     pathname === '/brand/tanweel-white.png'
   ) {

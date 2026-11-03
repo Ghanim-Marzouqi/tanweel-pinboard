@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LocaleToggle } from '@/components/locale-toggle';
+import { PwaInstall } from '@/components/pwa-install';
 import { BrandMark } from '@/components/brand-mark';
 import { safeCallbackUrl } from '@/lib/utils';
 
@@ -62,8 +63,7 @@ export default function LoginPage() {
         <aside
           className="relative hidden flex-col justify-between p-8 text-white md:flex"
           style={{
-            background:
-              'linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 55%, #3b2a6b 100%)',
+            background: 'linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 55%, #3b2a6b 100%)',
           }}
         >
           <div className="inline-flex flex-col items-start gap-2">
@@ -71,7 +71,9 @@ export default function LoginPage() {
             <span className="text-base font-semibold tracking-tight">{tApp('brand')}</span>
           </div>
           <div>
-            <p className="whitespace-pre-line text-3xl font-semibold leading-tight tracking-tight">{t('heroTitle')}</p>
+            <p className="whitespace-pre-line text-3xl font-semibold leading-tight tracking-tight">
+              {t('heroTitle')}
+            </p>
             <p className="mt-4 max-w-xs text-sm text-white/80">{tApp('tagline')}</p>
           </div>
         </aside>
@@ -150,7 +152,10 @@ export default function LoginPage() {
                 />
                 {t('remember')}
               </label>
-              <Link href="/forgot-password" className="text-sm text-[color:var(--accent-strong)] hover:underline">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-[color:var(--accent-strong)] hover:underline"
+              >
                 {t('forgot')}
               </Link>
             </div>
@@ -172,6 +177,9 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-xs text-[color:var(--text-faint)]">{t('noAccount')}</p>
+          <div className="mt-4 border-t border-[color:var(--border)] pt-2">
+            <PwaInstall />
+          </div>
         </main>
       </div>
     </div>

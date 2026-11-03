@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Tajawal } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
@@ -7,7 +7,10 @@ import { readLocale } from '@/i18n/request';
 import { auth } from '@/lib/auth';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { ToastProvider } from '@/components/toast';
+import { PwaProvider } from '@/components/pwa-provider';
 import './globals.css';
+
+export const viewport: Viewport = { themeColor: '#8851f5', viewportFit: 'cover' };
 
 // Arabic UI font. Downloaded at build time and served from this app (no
 // requests to Google at runtime). Tajawal has no 600, so semibold uses 700.
@@ -20,12 +23,16 @@ const tajawal = Tajawal({
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('app');
-  return { title: t('brand'), description: t('tagline') };
+  return {
+    title: t('brand'),
+    description: t('tagline'),
+    applicationName: 'Pinboard',
+    appleWebApp: { capable: true, title: 'Pinboard', statusBarStyle: 'default' },
+    formatDetection: { telephone: false },
+  };
 }
 
-export default async function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await readLocale();
   const messages = await getMessages();
   const session = await auth();
@@ -37,7 +44,9 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SessionProvider session={session}>
             <ToastProvider>
-              <ConfirmProvider>{children}</ConfirmProvider>
+              <ConfirmProvider>
+                <PwaProvider>{children}</PwaProvider>
+              </ConfirmProvider>
             </ToastProvider>
           </SessionProvider>
         </NextIntlClientProvider>

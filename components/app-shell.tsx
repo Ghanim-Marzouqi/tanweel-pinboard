@@ -17,6 +17,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { PwaInstall } from '@/components/pwa-install';
 import { BrandMark } from '@/components/brand-mark';
 import { LocaleToggle } from '@/components/locale-toggle';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -49,7 +50,7 @@ export function AppShell({ user, projects, minimal = false, children }: Props) {
 
   return (
     <div className="min-h-[100svh]">
-      <header className="sticky top-0 z-30 border-b border-[color:var(--border)] bg-[color:var(--surface)]/85 backdrop-blur-md">
+      <header className="sticky top-[env(safe-area-inset-top)] z-30 border-b border-[color:var(--border)] bg-[color:var(--surface)]/85 backdrop-blur-md">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           {!minimal && (
             <button
@@ -105,7 +106,7 @@ export function AppShell({ user, projects, minimal = false, children }: Props) {
                 className="absolute inset-0 bg-black/30"
                 onClick={() => setMenuOpen(false)}
               />
-              <aside className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col bg-[color:var(--surface)] shadow-[var(--shadow-md)]">
+              <aside className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col bg-[color:var(--surface)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-md)]">
                 <div className="flex items-center justify-between border-b border-[color:var(--border)] px-4 py-3">
                   <div className="inline-flex flex-col items-start gap-1">
                     <BrandMark size={32} />
@@ -210,6 +211,7 @@ function SidebarNav({
       </div>
 
       <div className="space-y-1 border-t border-[color:var(--border)] pt-3">
+        <PwaInstall />
         {user.role === 'admin' && (
           <NavLink
             href="/admin/request-categories"

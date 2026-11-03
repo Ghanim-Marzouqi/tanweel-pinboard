@@ -215,6 +215,16 @@ Request priorities have bilingual names and an editable display order. Admins ad
 
 The additive `project_requests` migration creates the request tables and four editable starter categories: Technical issue, Enhancement, Suggestion and Observation. All request uploads live under `requests/` in the existing uploads volume, so nightly backups already include them. `restore-test.sh` checks request attachment sizes for newer snapshots and remains compatible with snapshots from before this feature. Run the migration and regenerate Prisma before starting the updated application. Deployment follows the existing backup and release procedure; implementing this feature locally does not deploy it.
 
+## Install Pinboard on a phone (PWA)
+
+Pinboard can be installed from `https://pinboard.tanweel.om` and opened in a standalone window with the official Tanweel icon. **Install Pinboard** is available on the sign-in screen and in the navigation menu, with English/Arabic instructions. On Android, use Chrome's **Install app / Add to Home screen** menu (or the native install button when offered). On iPhone/iPad, use Safari → **Share → Add to Home Screen**, keeping **Open as Web App** enabled when shown. The installed app opens Requests and uses the existing account/session rules.
+
+This is an online workspace: there is no offline editing, background synchronization, or push notification subscription in this release. Existing email notifications continue unchanged. When connectivity is lost, the app shows a connection notice; a full page load shows a public bilingual offline screen with a retry button. The service worker caches only `/offline.html` and the two public PWA icons. It never stores authenticated pages, API responses, requests, tasks, comments or attachments. API responses use `Cache-Control: private, no-store`. The worker does not replace API/download errors with HTML.
+
+The manifest and worker are anonymous public endpoints, alongside the exact icon/offline paths; other authentication checks remain in force. `/sw.js` is served with `no-store`, and the client registers it using `updateViaCache: none`. Only the offline assets are versioned in `public/sw.js`: bump `CACHE_NAME` when changing those assets. Old Pinboard offline caches are removed on activation; unrelated caches are untouched. Application code/pages stay network-only so new releases do not require a forced reload of an unsaved form. Development mode does not register a worker; test the production build over localhost or HTTPS. No database migration or additional runtime dependency is required.
+
+Browser tests cover public manifest/icon access, a real worker, online/offline recovery, cache contents after authenticated use and sign-out, and Arabic mobile installation guidance. Actual OS installation should also be checked on the team's Android/iPhone devices.
+
 ## Layout
 
 ```
