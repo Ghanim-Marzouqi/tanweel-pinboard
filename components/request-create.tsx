@@ -86,7 +86,7 @@ export function RequestCreate({
                 className="request-field"
               />
             </label>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-5">
               <label className="block min-w-0 space-y-2">
                 <span className="text-sm font-medium">{t('category')}</span>
                 <Select aria-label={t('category')} name="categoryId" required defaultValue="">
