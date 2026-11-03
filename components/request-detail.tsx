@@ -376,7 +376,7 @@ export function RequestDetail({
                   });
                 }}
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-4">
                   <div className="min-w-0 space-y-2">
                     <p>{t('category')}</p>
                     <p className="break-words rounded-lg bg-[color:var(--surface-muted)] px-3 py-2 text-sm">
