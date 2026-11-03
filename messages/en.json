@@ -273,7 +273,8 @@
     "noProjects": "No projects yet",
     "myTasks": "My tasks",
     "requests": "Requests",
-    "requestCategories": "Request categories"
+    "requestCategories": "Request categories",
+    "requestPriorities": "Request priorities"
   },
   "projects": {
     "title": "Projects",
@@ -563,6 +564,21 @@
     "editCategory": "Edit",
     "categoryList": "Available categories",
     "categorySettingsHint": "Keep request types clear and consistent across your projects.",
-    "noAvailableTasks": "No unlinked tasks match this view. Try a different search or create a task."
+    "noAvailableTasks": "No unlinked tasks match this view. Try a different search or create a task.",
+    "priorities": "Request priorities",
+    "noPriority": "Not set",
+    "allPriorities": "All priorities",
+    "addPriority": "Add priority",
+    "savePriority": "Save priority",
+    "priorityList": "Available priorities",
+    "prioritySettingsHint": "Set shared priority levels for requests across your projects.",
+    "priorityHint": "Archive a priority to stop new selections while preserving existing requests. Request priorities are independent of task priorities.",
+    "sortOrder": "Display order (lowest first)",
+    "requestSettings": "Request settings",
+    "priorityChanged": "Priority changed from {from} to {to}",
+    "deleteRequest": "Delete request",
+    "deleteHint": "Only requests with no linked tasks can be deleted.",
+    "deleteLinkedHint": "Unlink all tasks before deleting this request.",
+    "deleteConfirm": "Permanently delete this request, including its comments, history, and attachments? This cannot be undone."
   }
 }

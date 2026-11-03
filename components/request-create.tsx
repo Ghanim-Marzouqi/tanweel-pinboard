@@ -13,11 +13,13 @@ import { muscatDateTimeInput } from '@/lib/request-validation';
 export function RequestCreate({
   project,
   categories,
+  priorities,
   reporter,
   now,
 }: {
   project: { id: string; name: string };
   categories: { id: string; nameEn: string; nameAr: string }[];
+  priorities: { id: string; nameEn: string; nameAr: string }[];
   reporter: string;
   now: string;
 }) {
@@ -37,6 +39,7 @@ export function RequestCreate({
       suggestions: form.get('suggestions'),
       shift: form.get('shift'),
       categoryId: form.get('categoryId'),
+      priorityId: form.get('priorityId') || null,
       occurredAt: new Date(`${form.get('occurredAt')}:00+04:00`).toISOString(),
     });
     if (!res.ok) {
@@ -83,19 +86,32 @@ export function RequestCreate({
                 className="request-field"
               />
             </label>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium">{t('category')}</span>
-              <Select aria-label={t('category')} name="categoryId" required defaultValue="">
-                <option value="" disabled>
-                  {t('chooseCategory')}
-                </option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {locale === 'ar' ? c.nameAr : c.nameEn}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block min-w-0 space-y-2">
+                <span className="text-sm font-medium">{t('category')}</span>
+                <Select aria-label={t('category')} name="categoryId" required defaultValue="">
+                  <option value="" disabled>
+                    {t('chooseCategory')}
                   </option>
-                ))}
-              </Select>
-            </label>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {locale === 'ar' ? c.nameAr : c.nameEn}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="block min-w-0 space-y-2">
+                <span className="text-sm font-medium">{t('priority')}</span>
+                <Select aria-label={t('priority')} name="priorityId" defaultValue="">
+                  <option value="">{t('noPriority')}</option>
+                  {priorities.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {locale === 'ar' ? p.nameAr : p.nameEn}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
             <label className="block space-y-2">
               <span className="text-sm font-medium">{t('description')}</span>
               <Textarea

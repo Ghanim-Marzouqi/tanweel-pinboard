@@ -21,6 +21,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         }),
       ])
     : [[], []];
+  const priorities = isAdmin
+    ? await prisma.requestPriority.findMany({
+        where: { OR: [{ isArchived: false }, ...(request.priorityId ? [{ id: request.priorityId }] : [])] },
+        orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }],
+      })
+    : [];
   const key = [
     request.id,
     request.updatedAt.toISOString(),
@@ -36,6 +42,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       userId={session.user.id}
       people={people}
       initialTasks={tasks}
+      priorities={priorities}
     />
   );
 }

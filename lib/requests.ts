@@ -9,6 +9,7 @@ export function visibleRequestsWhere(actor: Actor): Prisma.WorkRequestWhereInput
 }
 export const requestInclude = {
   category: true,
+  priority: true,
   createdBy: { select: { name: true } },
   project: { select: { id: true, name: true, isArchived: true } },
   taskLinks: {
@@ -67,4 +68,12 @@ export function requestErrorResponse(error: unknown): Response {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
     return Response.json({ error: 'This name or link already exists' }, { status: 409 });
   throw error;
+}
+
+/** Lock a priority against concurrent archiving before accepting a new selection. */
+export async function requireActivePriority(tx: Prisma.TransactionClient, id: string | null | undefined) {
+  if (!id) return;
+  await tx.$queryRaw`SELECT id FROM request_priorities WHERE id = ${id}::uuid FOR SHARE`;
+  if (!(await tx.requestPriority.findFirst({ where: { id, isArchived: false } })))
+    throw new RequestError(400, 'Choose an active priority');
 }

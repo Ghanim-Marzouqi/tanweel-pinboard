@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireSession, findVisibleProject, notFound, badRequest } from '@/lib/api-auth';
 import {
   RequestCreateSchema,
+  requireActivePriority,
   RequestQuerySchema,
   visibleRequestsWhere,
   RequestError,
@@ -17,12 +18,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (!(await findVisibleProject(id, guard.session.user))) return notFound('Project not found');
   const parsed = RequestQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
   if (!parsed.success) return badRequest('Invalid query');
-  const { page, q, status, categoryId } = parsed.data;
+  const { page, q, status, categoryId, priorityId } = parsed.data;
   const where = {
     projectId: id,
     ...visibleRequestsWhere(guard.session.user),
     status,
     categoryId,
+    priorityId,
     ...(q
       ? {
           OR: [
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       where,
       include: {
         category: true,
+        priority: true,
         createdBy: { select: { name: true } },
         _count: { select: { taskLinks: true } },
       },
@@ -64,6 +67,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       await tx.$queryRaw`SELECT id FROM request_categories WHERE id = ${parsed.data.categoryId}::uuid FOR SHARE`;
       if (!(await tx.requestCategory.findFirst({ where: { id: parsed.data.categoryId, isArchived: false } })))
         throw new RequestError(400, 'Choose an active category');
+      await requireActivePriority(tx, parsed.data.priorityId);
       return tx.workRequest.create({
         data: {
           ...parsed.data,

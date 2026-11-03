@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import {
   ChevronRight,
   Folder,
+  Flag,
   Inbox,
   Link2,
   Plus,
@@ -44,12 +45,15 @@ export async function RequestListPage({
   const project = projectId ? projects.find((p) => p.id === projectId) : null;
   if (projectId && !project) notFound();
   const parsed = RequestQuerySchema.safeParse(searchParams);
-  const { q, status, categoryId, page } = parsed.success ? parsed.data : RequestQuerySchema.parse({});
+  const { q, status, categoryId, priorityId, page } = parsed.success
+    ? parsed.data
+    : RequestQuerySchema.parse({});
   const scope = { ...visibleRequestsWhere(session.user), ...(projectId ? { projectId } : {}) };
   const where = {
     ...scope,
     status,
     categoryId,
+    priorityId,
     ...(q
       ? {
           OR: [
@@ -59,11 +63,12 @@ export async function RequestListPage({
         }
       : {}),
   };
-  const [rows, total, categories, counts] = await Promise.all([
+  const [rows, total, categories, counts, priorities] = await Promise.all([
     prisma.workRequest.findMany({
       where,
       include: {
         category: true,
+        priority: true,
         createdBy: { select: { name: true } },
         project: { select: { name: true } },
         _count: { select: { taskLinks: true } },
@@ -75,9 +80,10 @@ export async function RequestListPage({
     prisma.workRequest.count({ where }),
     prisma.requestCategory.findMany({ orderBy: { nameEn: 'asc' } }),
     prisma.workRequest.groupBy({ by: ['status'], where: scope, _count: { _all: true } }),
+    prisma.requestPriority.findMany({ orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }] }),
   ]);
   const baseUrl = projectId ? `/projects/${projectId}/requests` : '/requests';
-  const hasFilters = Boolean(q || status || categoryId);
+  const hasFilters = Boolean(q || status || categoryId || priorityId);
   const overallCount = counts.reduce((sum, item) => sum + item._count._all, 0);
   const activeProjects = projects.filter((p) => !p.isArchived);
   function viewUrl(nextStatus: string | undefined = status, nextPage = 1) {
@@ -85,6 +91,7 @@ export async function RequestListPage({
       ...(q ? { q } : {}),
       ...(nextStatus ? { status: nextStatus } : {}),
       ...(categoryId ? { categoryId } : {}),
+      ...(priorityId ? { priorityId } : {}),
       ...(nextPage > 1 ? { page: String(nextPage) } : {}),
     });
     return `${baseUrl}${sp.size ? `?${sp}` : ''}`;
@@ -164,7 +171,7 @@ export async function RequestListPage({
             </span>
             <div
               className="min-w-0 max-w-52 flex-1"
-              key={`mobile:${q ?? ''}:${status ?? ''}:${categoryId ?? ''}`}
+              key={`mobile:${q ?? ''}:${status ?? ''}:${categoryId ?? ''}:${priorityId ?? ''}`}
             >
               <Select
                 form="request-filters"
@@ -202,18 +209,29 @@ export async function RequestListPage({
             ))}
           </nav>
           {session.user.role === 'admin' && (
-            <Link
-              href="/admin/request-categories"
-              className="hidden items-center gap-1.5 rounded-lg p-2 text-xs sm:inline-flex text-[color:var(--text-muted)] hover:bg-[color:var(--surface-muted)]"
-            >
-              <Settings2 size={15} aria-hidden />
-              {t('categories')}
-            </Link>
+            <div className="flex items-center gap-1">
+              {(['categories', 'priorities'] as const).map((kind) => (
+                <Link
+                  key={kind}
+                  href={`/admin/request-${kind}`}
+                  aria-label={t(kind)}
+                  title={t(kind)}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 text-xs text-[color:var(--text-muted)] hover:bg-[color:var(--surface-muted)]"
+                >
+                  {kind === 'categories' ? (
+                    <Settings2 size={16} aria-hidden />
+                  ) : (
+                    <Flag size={16} aria-hidden />
+                  )}
+                  <span className="hidden sm:inline">{t(kind)}</span>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
         <form
           id="request-filters"
-          key={`${q ?? ''}:${status ?? ''}:${categoryId ?? ''}`}
+          key={`${q ?? ''}:${status ?? ''}:${categoryId ?? ''}:${priorityId ?? ''}`}
           className="flex flex-wrap items-center gap-2 border-b border-[color:var(--border)] bg-[color:var(--background)]/50 p-4 sm:px-5"
           role="search"
         >
@@ -239,6 +257,17 @@ export async function RequestListPage({
                 <option key={c.id} value={c.id}>
                   {locale === 'ar' ? c.nameAr : c.nameEn}
                   {c.isArchived ? ` (${t('archived')})` : ''}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="min-w-0 flex-[1_1_140px]">
+            <Select name="priorityId" defaultValue={priorityId ?? ''} aria-label={t('priority')}>
+              <option value="">{t('allPriorities')}</option>
+              {priorities.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {locale === 'ar' ? p.nameAr : p.nameEn}
+                  {p.isArchived ? ` (${t('archived')})` : ''}
                 </option>
               ))}
             </Select>
@@ -290,6 +319,12 @@ export async function RequestListPage({
                   </span>
                   <span className="h-3 w-px bg-[color:var(--border-strong)]" aria-hidden />
                   <span>{locale === 'ar' ? r.category.nameAr : r.category.nameEn}</span>
+                  {r.priority && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-[color:var(--surface-muted)] px-1.5 py-0.5">
+                      <Flag size={12} aria-hidden />
+                      {locale === 'ar' ? r.priority.nameAr : r.priority.nameEn}
+                    </span>
+                  )}
                   {!project && (
                     <>
                       <span aria-hidden>·</span>

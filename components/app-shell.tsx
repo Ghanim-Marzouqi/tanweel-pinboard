@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Inbox,
+  Flag,
   Tags,
   CircleCheckBig,
   FolderKanban,
@@ -217,6 +218,16 @@ function SidebarNav({
           >
             <Tags size={16} />
             {t('requestCategories')}
+          </NavLink>
+        )}
+        {user.role === 'admin' && (
+          <NavLink
+            href="/admin/request-priorities"
+            active={pathname.startsWith('/admin/request-priorities')}
+            onNavigate={onNavigate}
+          >
+            <Flag size={16} />
+            {t('requestPriorities')}
           </NavLink>
         )}
         {user.role === 'admin' && (

@@ -232,12 +232,24 @@ model RequestCategory {
   @@map("request_categories")
 }
 
+model RequestPriority {
+  id         String        @id @default(uuid()) @db.Uuid
+  nameEn     String        @unique @db.VarChar(80)
+  nameAr     String        @unique @db.VarChar(80)
+  isArchived Boolean       @default(false)
+  sortOrder  Int           @default(0)
+  requests   WorkRequest[]
+
+  @@map("request_priorities")
+}
+
 model WorkRequest {
   id            String              @id @default(uuid()) @db.Uuid
   number        Int                 @unique @default(autoincrement())
   projectId     String              @db.Uuid
   createdById   String              @db.Uuid
   categoryId    String              @db.Uuid
+  priorityId    String?             @db.Uuid
   title         String              @db.VarChar(200)
   description   String              @db.Text
   suggestions   String              @default("") @db.Text
@@ -250,6 +262,7 @@ model WorkRequest {
   project       Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
   createdBy     User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
   category      RequestCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  priority      RequestPriority?    @relation(fields: [priorityId], references: [id], onDelete: Restrict)
   activities    RequestActivity[]
   attachments   RequestAttachment[]
   taskLinks     RequestTaskLink[]
@@ -278,7 +291,7 @@ model RequestTaskLink {
   taskId      String      @db.Uuid
   creationKey String?     @unique @db.Uuid
   createdAt   DateTime    @default(now())
-  request     WorkRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request     WorkRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
   task        Task        @relation(fields: [taskId], references: [id], onDelete: Restrict)
 
   @@id([requestId, taskId])

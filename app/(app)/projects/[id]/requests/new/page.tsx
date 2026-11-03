@@ -16,10 +16,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     where: { isArchived: false },
     orderBy: { nameEn: 'asc' },
   });
+  const priorities = await prisma.requestPriority.findMany({
+    where: { isArchived: false },
+    orderBy: [{ sortOrder: 'asc' }, { nameEn: 'asc' }],
+  });
   return (
     <RequestCreate
       project={project}
       categories={categories}
+      priorities={priorities}
       reporter={session.user.name}
       now={new Date().toISOString()}
     />

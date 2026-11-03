@@ -17,6 +17,8 @@ import {
   Paperclip,
   Plus,
   Upload,
+  Trash2,
+  Flag,
   X,
 } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
@@ -41,6 +43,8 @@ export interface RequestView {
   createdAt: string;
   project: { id: string; name: string; isArchived: boolean };
   category: { nameEn: string; nameAr: string };
+  priorityId: string | null;
+  priority: { nameEn: string; nameAr: string } | null;
   createdBy: { name: string };
   taskLinks: { task: { id: string; title: string; status: string } }[];
   attachments: { id: string; fileName: string; sizeBytes: number; uploadedById: string }[];
@@ -61,12 +65,14 @@ export function RequestDetail({
   userId,
   people,
   initialTasks,
+  priorities,
 }: {
   request: RequestView;
   isAdmin: boolean;
   userId: string;
   people: { id: string; name: string }[];
   initialTasks: { id: string; title: string }[];
+  priorities: { id: string; nameEn: string; nameAr: string; isArchived: boolean }[];
 }) {
   const t = useTranslations('requests');
   const taskT = useTranslations('tasks');
@@ -75,6 +81,7 @@ export function RequestDetail({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState(r.status);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [tasks, setTasks] = useState(initialTasks);
   const [search, setSearch] = useState('');
   const [taskDialog, setTaskDialog] = useState<'existing' | 'create' | null>(null);
@@ -90,6 +97,7 @@ export function RequestDetail({
       setError(result.error);
       return false;
     }
+    if (method === 'DELETE' && path === '') router.push(`/projects/${r.project.id}/requests`);
     router.refresh();
     return true;
   }
@@ -128,6 +136,12 @@ export function RequestDetail({
   }
   function activity(a: RequestView['activities'][number]) {
     if (a.kind === 'comment') return a.body;
+    if (a.kind === 'priority') {
+      const change = JSON.parse(a.body) as { from: RequestView['priority']; to: RequestView['priority'] };
+      const label = (p: RequestView['priority']) =>
+        p ? (locale === 'ar' ? p.nameAr : p.nameEn) : t('noPriority');
+      return t('priorityChanged', { from: label(change.from), to: label(change.to) });
+    }
     if (a.kind === 'status') {
       const change = JSON.parse(a.body) as { from: string; to: string; reason: string };
       return `${t('statusChanged', { from: t(`statuses.${change.from}`), to: t(`statuses.${change.to}`) })}${change.reason ? ` — ${change.reason}` : ''}`;
@@ -154,6 +168,10 @@ export function RequestDetail({
           <span className="text-sm text-[color:var(--text-muted)]">
             {locale === 'ar' ? r.category.nameAr : r.category.nameEn}
           </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--surface-muted)] px-2 py-1 text-xs">
+            <Flag size={13} aria-hidden />
+            {r.priority ? (locale === 'ar' ? r.priority.nameAr : r.priority.nameEn) : t('noPriority')}
+          </span>
         </div>
         <h1 className="text-start max-w-4xl break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
           <bdi className="request-copy">{r.title}</bdi>
@@ -174,7 +192,7 @@ export function RequestDetail({
       {r.project.isArchived && (
         <p className="rounded-lg bg-[color:var(--surface-muted)] p-4">{t('archivedProject')}</p>
       )}
-      {error && !taskDialog && (
+      {error && !taskDialog && !deleteOpen && (
         <p
           role="alert"
           className="rounded-lg border border-[color:var(--danger)] p-3 text-[color:var(--danger)]"
@@ -351,9 +369,38 @@ export function RequestDetail({
                 onSubmit={(e) => {
                   e.preventDefault();
                   const data = new FormData(e.currentTarget);
-                  void action('', 'PATCH', { status, closureReason: data.get('closureReason') ?? '' });
+                  void action('', 'PATCH', {
+                    status,
+                    closureReason: data.get('closureReason') ?? '',
+                    priorityId: data.get('priorityId') || null,
+                  });
                 }}
               >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="min-w-0 space-y-2">
+                    <p>{t('category')}</p>
+                    <p className="break-words rounded-lg bg-[color:var(--surface-muted)] px-3 py-2 text-sm">
+                      {locale === 'ar' ? r.category.nameAr : r.category.nameEn}
+                    </p>
+                  </div>
+                  <label className="block min-w-0 space-y-2">
+                    <span>{t('priority')}</span>
+                    <Select
+                      aria-label={t('priority')}
+                      name="priorityId"
+                      defaultValue={r.priorityId ?? ''}
+                      disabled={pending}
+                    >
+                      <option value="">{t('noPriority')}</option>
+                      {priorities.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {locale === 'ar' ? p.nameAr : p.nameEn}
+                          {p.isArchived ? ` (${t('archived')})` : ''}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                </div>
                 <label className="block space-y-2">
                   <span>{t('status')}</span>
                   <Select
@@ -449,8 +496,53 @@ export function RequestDetail({
               </div>
             )}
           </section>
+          {isAdmin && !r.project.isArchived && (
+            <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5">
+              <Button
+                variant="secondary"
+                className="text-[color:var(--danger)]"
+                disabled={pending || r.taskLinks.length > 0}
+                onClick={() => {
+                  setError('');
+                  setDeleteOpen(true);
+                }}
+              >
+                <Trash2 size={16} aria-hidden />
+                {t('deleteRequest')}
+              </Button>
+              <p className="mt-3 text-xs leading-relaxed text-[color:var(--text-muted)]">
+                {t(r.taskLinks.length ? 'deleteLinkedHint' : 'deleteHint')}
+              </p>
+            </section>
+          )}
         </div>
       </div>
+      <Dialog
+        open={deleteOpen}
+        onClose={() => !pending && setDeleteOpen(false)}
+        title={t('deleteRequest')}
+        description={t('deleteConfirm')}
+      >
+        <p className="mb-4 break-words rounded-lg bg-[color:var(--surface-muted)] p-3 text-sm">
+          <bdi>
+            #{r.number} — {r.title}
+          </bdi>
+        </p>
+        {error && (
+          <p role="alert" className="mb-4 text-sm text-[color:var(--danger)]">
+            {error}
+          </p>
+        )}
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button autoFocus variant="secondary" disabled={pending} onClick={() => setDeleteOpen(false)}>
+            {t('cancel')}
+          </Button>
+          <Button variant="danger" disabled={pending} onClick={() => void action('', 'DELETE')}>
+            <Trash2 size={16} aria-hidden />
+            {t('deleteRequest')}
+          </Button>
+        </div>
+      </Dialog>
       <Dialog
         open={taskDialog !== null}
         onClose={() => !pending && setTaskDialog(null)}

@@ -1,5 +1,6 @@
 import ar from '../../messages/ar.json';
 import { test, expect, type Page, type APIResponse } from '@playwright/test';
+import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { E2E_ADMIN } from './credentials';
 import { signIn, open } from './helpers';
@@ -257,7 +258,7 @@ test('create-and-link is atomic and retry-safe; multiple tasks can serve one req
   await open(admin, `/requests/${ownRequest}`);
   await admin.getByRole('button', { name: 'Create task and link', exact: true }).click();
   await admin.getByLabel('Task title', { exact: true }).fill(`UI linked ${run}`);
-  await admin.getByLabel('Priority', { exact: true }).selectOption('High');
+  await admin.getByRole('dialog').getByLabel('Priority', { exact: true }).selectOption('High');
   await admin.getByLabel('Assignee', { exact: true }).selectOption(ownerId);
   await admin.getByRole('dialog').getByRole('button', { name: 'Create task and link', exact: true }).click();
   await expect(admin.getByRole('link', { name: `UI linked ${run}`, exact: true })).toBeVisible();
@@ -283,6 +284,197 @@ test('create-and-link is atomic and retry-safe; multiple tasks can serve one req
   for (const id of [ownRequest, otherRequest])
     await json(await admin.request.delete(`/api/requests/${id}/links`, { data: { taskId: task } }));
   await json(await admin.request.put(`/api/tasks/${task}`, { data: { projectId: otherProject } }));
+});
+
+test('editable request priorities are admin-managed, preserved when archived, and filterable', async () => {
+  const priorityName = `Critical ${run}`;
+  expect(
+    (
+      await owner.request.post('/api/request-priorities', { data: { nameEn: priorityName, nameAr: 'ممنوع' } })
+    ).status(),
+  ).toBe(403);
+  await open(admin, '/admin/request-priorities');
+  const addForm = admin.getByRole('form', { name: 'Add priority', exact: true });
+  await addForm.getByLabel('English name').fill(priorityName);
+  await addForm.getByLabel('Arabic name').fill(`حرجة ${run}`);
+  await addForm.getByLabel('Display order (lowest first)').fill('5');
+  await admin.getByRole('button', { name: 'Add priority', exact: true }).click();
+  await expect(admin.getByText(priorityName, { exact: true })).toBeVisible();
+  const priority = (await json(await admin.request.get('/api/request-priorities'))).priorities.find(
+    (p: { nameEn: string }) => p.nameEn === priorityName,
+  );
+  expect(priority.sortOrder).toBe(5);
+  expect(
+    (
+      await owner.request.patch(`/api/request-priorities/${priority.id}`, {
+        data: { nameEn: 'Forbidden', nameAr: 'ممنوع' },
+      })
+    ).status(),
+  ).toBe(403);
+  expect(
+    (
+      await admin.request.post('/api/request-priorities', { data: { nameEn: priorityName, nameAr: 'مكرر' } })
+    ).status(),
+  ).toBe(409);
+  const active = (await json(await admin.request.get('/api/request-categories'))).categories.find(
+    (c: { isArchived: boolean }) => !c.isArchived,
+  ).id;
+  await open(owner, `/projects/${project}/requests/new`);
+  await owner.getByLabel('Request title', { exact: true }).fill(`Prioritized ${run}`);
+  await owner.getByLabel('Category', { exact: true }).selectOption(active);
+  await owner.getByLabel('Priority', { exact: true }).selectOption(priority.id);
+  await owner.getByLabel('Description', { exact: true }).fill('Customer suggestion');
+  await owner.getByRole('button', { name: 'Submit request' }).click();
+  await expect(owner.getByRole('heading', { name: `Prioritized ${run}` })).toBeVisible();
+  const id = new URL(owner.url()).pathname.split('/').pop()!;
+  expect((await json(await owner.request.get(`/api/requests/${id}`))).request.priorityId).toBe(priority.id);
+  expect(
+    (
+      await owner.request.patch(`/api/requests/${id}`, { data: { status: 'New', priorityId: null } })
+    ).status(),
+  ).toBe(403);
+  await open(owner, `/projects/${project}/requests`);
+  await owner.getByRole('combobox', { name: 'Priority', exact: true }).selectOption(priority.id);
+  await owner.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(owner.getByRole('link', { name: new RegExp(`Prioritized ${run}`) })).toBeVisible();
+  await expect(owner.getByRole('link', { name: new RegExp(`Own issue ${run}`) })).toHaveCount(0);
+  const filtered = await json(
+    await owner.request.get(`/api/projects/${project}/requests?priorityId=${priority.id}`),
+  );
+  expect(filtered.requests.map((r: { id: string }) => r.id)).toEqual([id]);
+  await open(admin, `/requests/${ownRequest}`);
+  await admin.getByLabel('Priority', { exact: true }).selectOption(priority.id);
+  await admin.getByRole('button', { name: 'Save review' }).click();
+  await expect(
+    admin.getByText(`Priority changed from Not set to ${priorityName}`, { exact: true }),
+  ).toBeVisible();
+  await open(admin, '/admin/request-priorities');
+  await admin.getByText(priorityName, { exact: true }).click();
+  const form = admin.getByRole('form', { name: priorityName });
+  await form.getByLabel('English name').fill(`Updated priority ${run}`);
+  await form.getByLabel('Archived', { exact: true }).check();
+  await form.getByRole('button', { name: 'Save priority' }).click();
+  await expect(admin.getByText(`Updated priority ${run}`, { exact: true })).toBeVisible();
+  expect((await json(await owner.request.get(`/api/requests/${id}`))).request.priority.nameEn).toBe(
+    `Updated priority ${run}`,
+  );
+  expect(
+    (await json(await owner.request.get('/api/request-priorities'))).priorities.some(
+      (p: { id: string }) => p.id === priority.id,
+    ),
+  ).toBe(false);
+  expect(
+    (
+      await owner.request.post(`/api/projects/${project}/requests`, {
+        data: { ...payload('Archived priority'), categoryId: active, priorityId: priority.id },
+      })
+    ).status(),
+  ).toBe(400);
+  expect(
+    (
+      await owner.request.post(`/api/projects/${project}/requests`, {
+        data: { ...payload('Unknown priority'), categoryId: active, priorityId: randomUUID() },
+      })
+    ).status(),
+  ).toBe(400);
+  // An existing archived selection survives status-only edits and can be cleared.
+  await json(
+    await admin.request.patch(`/api/requests/${id}`, {
+      data: { status: 'Accepted', priorityId: priority.id },
+    }),
+  );
+  await json(
+    await admin.request.patch(`/api/requests/${id}`, { data: { status: 'Accepted', priorityId: null } }),
+  );
+  expect(
+    (
+      await admin.request.patch(`/api/requests/${id}`, {
+        data: { status: 'Accepted', priorityId: priority.id },
+      })
+    ).status(),
+  ).toBe(400);
+  await json(await admin.request.delete(`/api/requests/${id}`));
+});
+
+test('only admins delete unlinked requests; confirmation, closed requests, files and concurrent linking are protected', async () => {
+  const task = (
+    await json(
+      await admin.request.post(`/api/projects/${project}/tasks`, { data: { title: `Deletion link ${run}` } }),
+    )
+  ).task.id;
+  const active = (await json(await admin.request.get('/api/request-categories'))).categories.find(
+    (c: { isArchived: boolean }) => !c.isArchived,
+  ).id;
+  const create = async (title: string) =>
+    (
+      await json(
+        await owner.request.post(`/api/projects/${project}/requests`, {
+          data: { ...payload(title), categoryId: active },
+        }),
+      )
+    ).request.id;
+  const id = await create(`Delete check ${run}`);
+  await json(
+    await owner.request.post(`/api/requests/${id}/comments`, {
+      data: { body: 'Remove this discussion too' },
+    }),
+  );
+  const upload = await json(
+    await owner.request.post(`/api/requests/${id}/attachments`, {
+      multipart: {
+        file: { name: 'delete-evidence.txt', mimeType: 'text/plain', buffer: Buffer.from('deletion proof') },
+      },
+    }),
+  );
+  expect(existsSync(`.e2e-storage/requests/${id}`)).toBe(true);
+  for (const page of [owner, colleague, outsider])
+    expect((await page.request.delete(`/api/requests/${id}`)).status()).toBe(403);
+  await open(owner, `/requests/${id}`);
+  await expect(owner.getByRole('button', { name: 'Delete request', exact: true })).toHaveCount(0);
+  await json(await admin.request.post(`/api/requests/${id}/links`, { data: { taskId: task } }));
+  expect((await admin.request.delete(`/api/requests/${id}`)).status()).toBe(409);
+  await open(admin, `/requests/${id}`);
+  await expect(admin.getByRole('button', { name: 'Delete request', exact: true })).toBeDisabled();
+  await admin.getByRole('button', { name: 'Unlink', exact: true }).click();
+  await expect(admin.getByRole('button', { name: 'Delete request', exact: true })).toBeEnabled();
+  await admin.getByRole('button', { name: 'Delete request', exact: true }).click();
+  const dialog = admin.getByRole('dialog');
+  await expect(dialog.locator(':focus')).toHaveAccessibleName('Cancel');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).last().click();
+  expect((await admin.request.get(`/api/requests/${id}`)).status()).toBe(200);
+  // Closed requests can also be deleted after unlinking.
+  await json(
+    await admin.request.patch(`/api/requests/${id}`, {
+      data: { status: 'Closed', closureReason: 'Duplicate' },
+    }),
+  );
+  await open(admin, `/requests/${id}`);
+  await admin.getByRole('button', { name: 'Delete request', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Delete request', exact: true }).click();
+  await expect(admin).toHaveURL(`/projects/${project}/requests`);
+  expect((await admin.request.get(`/api/requests/${id}`)).status()).toBe(404);
+  expect(
+    (await admin.request.get(`/api/requests/${id}/attachments/${upload.attachment.id}/download`)).status(),
+  ).toBe(404);
+  expect(existsSync(`.e2e-storage/requests/${id}`)).toBe(false);
+  expect((await admin.request.get(`/api/tasks/${task}`)).status()).toBe(200);
+  const racing = await create(`Concurrent deletion ${run}`);
+  const [linked, deleted] = await Promise.all([
+    admin.request.post(`/api/requests/${racing}/links`, { data: { taskId: task } }),
+    admin.request.delete(`/api/requests/${racing}`),
+  ]);
+  if (deleted.ok()) {
+    expect(linked.status()).toBe(404);
+    expect((await admin.request.get(`/api/requests/${racing}`)).status()).toBe(404);
+  } else {
+    expect(deleted.status()).toBe(409);
+    expect(linked.ok()).toBe(true);
+    expect((await json(await admin.request.get(`/api/requests/${racing}`))).request.taskLinks).toHaveLength(
+      1,
+    );
+    await json(await admin.request.delete(`/api/requests/${racing}/links`, { data: { taskId: task } }));
+    await json(await admin.request.delete(`/api/requests/${racing}`));
+  }
 });
 
 test('Arabic requests fit mobile; request-only projects cannot be deleted; archived projects are read-only', async () => {
@@ -354,6 +546,7 @@ test('Arabic requests fit mobile; request-only projects cannot be deleted; archi
   );
   expect((await admin.request.delete(`/api/projects/${empty}`)).status()).toBe(409);
   await json(await admin.request.patch(`/api/projects/${project}`, { data: { isArchived: true } }));
+  expect((await admin.request.delete(`/api/requests/${otherRequest}`)).status()).toBe(403);
   expect(
     (await admin.request.patch(`/api/requests/${ownRequest}`, { data: { status: 'Accepted' } })).status(),
   ).toBe(403);

@@ -4,6 +4,8 @@ import {
   RequestReviewSchema,
   RequestLinkSchema,
   CategorySchema,
+  PrioritySchema,
+  RequestQuerySchema,
   muscatDateTimeInput,
 } from '@/lib/request-validation';
 
@@ -25,6 +27,13 @@ describe('request inputs', () => {
       'Duplicate',
     );
     expect(RequestReviewSchema.safeParse({ status: 'New' }).success).toBe(true);
+  });
+  it('validates editable priorities and optional selections', () => {
+    expect(PrioritySchema.safeParse({ nameEn: 'High', nameAr: '', sortOrder: 10 }).success).toBe(false);
+    expect(PrioritySchema.safeParse({ nameEn: 'High', nameAr: 'عالية', sortOrder: -1 }).success).toBe(false);
+    expect(RequestReviewSchema.safeParse({ status: 'New', priorityId: 'High' }).success).toBe(false);
+    expect(RequestReviewSchema.parse({ status: 'New', priorityId: null }).priorityId).toBeNull();
+    expect(RequestQuerySchema.parse({ priorityId: '' }).priorityId).toBeUndefined();
   });
   it('requires bilingual category names and unambiguous task linking', () => {
     expect(CategorySchema.safeParse({ nameEn: 'Issue', nameAr: '' }).success).toBe(false);

@@ -1,19 +1,27 @@
 'use client';
 import Link from 'next/link';
-import { ArrowLeft, ChevronDown, Plus, Tags } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Flag, Plus, Tags } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sendJson } from '@/lib/client-api';
-interface Category {
+interface RequestOption {
   id: string;
   nameEn: string;
   nameAr: string;
   isArchived: boolean;
+  sortOrder?: number;
 }
-export function RequestCategories({ categories }: { categories: Category[] }) {
+export function RequestOptions({
+  entries,
+  kind,
+}: {
+  entries: RequestOption[];
+  kind: 'categories' | 'priorities';
+}) {
+  const priorities = kind === 'priorities';
   const t = useTranslations('requests');
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -24,10 +32,11 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
     const data = new FormData(form);
     setPending(true);
     setError('');
-    const result = await sendJson(`/api/request-categories${id ? `/${id}` : ''}`, id ? 'PATCH' : 'POST', {
+    const result = await sendJson(`/api/request-${kind}${id ? `/${id}` : ''}`, id ? 'PATCH' : 'POST', {
       nameEn: data.get('nameEn'),
       nameAr: data.get('nameAr'),
       isArchived: data.get('isArchived') === 'on',
+      ...(priorities ? { sortOrder: Number(data.get('sortOrder')) } : {}),
     });
     setPending(false);
     if (!result.ok) {
@@ -37,7 +46,7 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
     if (!id) form.reset();
     router.refresh();
   }
-  function fields(c?: Category) {
+  function fields(c?: RequestOption) {
     return (
       <>
         <label className="block space-y-2">
@@ -48,6 +57,19 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
           <span>{t('arabicName')}</span>
           <Input name="nameAr" dir="rtl" required maxLength={80} defaultValue={c?.nameAr} />
         </label>
+        {priorities && (
+          <label className="block space-y-2">
+            <span>{t('sortOrder')}</span>
+            <Input
+              name="sortOrder"
+              type="number"
+              min={0}
+              max={10000}
+              required
+              defaultValue={c?.sortOrder ?? 0}
+            />
+          </label>
+        )}
         {c && (
           <label className="flex items-center gap-2">
             <input type="checkbox" name="isArchived" defaultChecked={c.isArchived} />
@@ -55,7 +77,9 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
           </label>
         )}
         <Button type="submit" disabled={pending} className="justify-self-start">
-          {c ? t('saveCategory') : t('addCategory')}
+          {c
+            ? t(priorities ? 'savePriority' : 'saveCategory')
+            : t(priorities ? 'addPriority' : 'addCategory')}
         </Button>
       </>
     );
@@ -70,9 +94,26 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
         {t('requests')}
       </Link>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('categories')}</h1>
-        <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('categorySettingsHint')}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t(kind)}</h1>
+        <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+          {t(priorities ? 'prioritySettingsHint' : 'categorySettingsHint')}
+        </p>
       </header>
+      <nav
+        aria-label={t('requestSettings')}
+        className="flex gap-2 border-b border-[color:var(--border)] pb-3"
+      >
+        {(['categories', 'priorities'] as const).map((tab) => (
+          <Link
+            key={tab}
+            href={`/admin/request-${tab}`}
+            aria-current={kind === tab ? 'page' : undefined}
+            className={`rounded-lg px-3 py-2 text-sm font-medium ${kind === tab ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)]' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--surface-muted)]'}`}
+          >
+            {t(tab === 'categories' ? 'category' : 'priority')}
+          </Link>
+        ))}
+      </nav>
       {error && (
         <p
           role="alert"
@@ -84,9 +125,9 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
       <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 sm:p-6">
         <h2 className="mb-5 flex items-center gap-2 font-semibold">
           <Plus size={17} aria-hidden className="text-[color:var(--accent)]" />
-          {t('addCategory')}
+          {t(priorities ? 'addPriority' : 'addCategory')}
         </h2>
-        <form onSubmit={(e) => save(e)}>
+        <form aria-label={t(priorities ? 'addPriority' : 'addCategory')} onSubmit={(e) => save(e)}>
           <fieldset disabled={pending} className="grid items-end gap-4 sm:grid-cols-2">
             {fields()}
           </fieldset>
@@ -95,17 +136,19 @@ export function RequestCategories({ categories }: { categories: Category[] }) {
       <section className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)]">
         <div className="border-b border-[color:var(--border)] px-5 py-4">
           <h2 className="text-sm font-semibold">
-            {t('categoryList')}{' '}
-            <span className="ms-2 font-normal text-[color:var(--text-faint)]">{categories.length}</span>
+            {t(priorities ? 'priorityList' : 'categoryList')}{' '}
+            <span className="ms-2 font-normal text-[color:var(--text-faint)]">{entries.length}</span>
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">{t('categoryHint')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-muted)]">
+            {t(priorities ? 'priorityHint' : 'categoryHint')}
+          </p>
         </div>
         <div className="divide-y divide-[color:var(--border)]">
-          {categories.map((c) => (
-            <details key={`${c.id}:${c.nameEn}:${c.nameAr}:${c.isArchived}`} className="group">
+          {entries.map((c) => (
+            <details key={`${c.id}:${c.nameEn}:${c.nameAr}:${c.isArchived}:${c.sortOrder}`} className="group">
               <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 hover:bg-[color:var(--surface-muted)] [&::-webkit-details-marker]:hidden">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[color:var(--accent-soft)] text-[color:var(--accent-strong)]">
-                  <Tags size={16} aria-hidden />
+                  {priorities ? <Flag size={16} aria-hidden /> : <Tags size={16} aria-hidden />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block break-words text-sm font-medium">
