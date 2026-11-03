@@ -475,6 +475,7 @@ test('only admins delete unlinked requests; confirmation, closed requests, files
     await json(await admin.request.delete(`/api/requests/${racing}/links`, { data: { taskId: task } }));
     await json(await admin.request.delete(`/api/requests/${racing}`));
   }
+  await json(await admin.request.delete(`/api/tasks/${task}`));
 });
 
 test('Arabic requests fit mobile; request-only projects cannot be deleted; archived projects are read-only', async () => {
