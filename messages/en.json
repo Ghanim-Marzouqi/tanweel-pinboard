@@ -595,7 +595,10 @@
       "occurredAt": "date and time",
       "categoryId": "category",
       "priorityId": "priority"
-    }
+    },
+    "submitterDeleteHint": "You can delete your own New requests when no tasks are linked.",
+    "deleteStatusChanged": "This request is no longer New and cannot be deleted. Close this dialog and refresh to see its current status.",
+    "deleteUnavailable": "Deletion is unavailable. Check that the project is active and you have permission to delete this request."
   },
   "pwa": {
     "install": "Install Pinboard",

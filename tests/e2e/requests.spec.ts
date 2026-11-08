@@ -396,7 +396,7 @@ test('editable request priorities are admin-managed, preserved when archived, an
   await json(await admin.request.delete(`/api/requests/${id}`));
 });
 
-test('only admins delete unlinked requests; confirmation, closed requests, files and concurrent linking are protected', async () => {
+test('admins delete unlinked requests; confirmation, closed requests, files and concurrent linking are protected', async () => {
   const task = (
     await json(
       await admin.request.post(`/api/projects/${project}/tasks`, { data: { title: `Deletion link ${run}` } }),
@@ -427,11 +427,17 @@ test('only admins delete unlinked requests; confirmation, closed requests, files
     }),
   );
   expect(existsSync(`.e2e-storage/requests/${id}`)).toBe(true);
-  for (const page of [owner, colleague, outsider])
-    expect((await page.request.delete(`/api/requests/${id}`)).status()).toBe(403);
+  for (const page of [colleague, outsider])
+    expect((await page.request.delete(`/api/requests/${id}`)).status()).toBe(404);
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'UnderReview' } }));
+  expect((await owner.request.delete(`/api/requests/${id}`)).status()).toBe(409);
   await open(owner, `/requests/${id}`);
   await expect(owner.getByRole('button', { name: 'Delete request', exact: true })).toHaveCount(0);
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'New' } }));
   await json(await admin.request.post(`/api/requests/${id}/links`, { data: { taskId: task } }));
+  expect((await owner.request.delete(`/api/requests/${id}`)).status()).toBe(409);
+  await open(owner, `/requests/${id}`);
+  await expect(owner.getByRole('button', { name: 'Delete request', exact: true })).toBeDisabled();
   expect((await admin.request.delete(`/api/requests/${id}`)).status()).toBe(409);
   await open(admin, `/requests/${id}`);
   await expect(admin.getByRole('button', { name: 'Delete request', exact: true })).toBeDisabled();
@@ -461,7 +467,7 @@ test('only admins delete unlinked requests; confirmation, closed requests, files
   const racing = await create(`Concurrent deletion ${run}`);
   const [linked, deleted] = await Promise.all([
     admin.request.post(`/api/requests/${racing}/links`, { data: { taskId: task } }),
-    admin.request.delete(`/api/requests/${racing}`),
+    owner.request.delete(`/api/requests/${racing}`),
   ]);
   if (deleted.ok()) {
     expect(linked.status()).toBe(404);
@@ -476,6 +482,89 @@ test('only admins delete unlinked requests; confirmation, closed requests, files
     await json(await admin.request.delete(`/api/requests/${racing}`));
   }
   await json(await admin.request.delete(`/api/tasks/${task}`));
+});
+
+test('submitters delete only their own New requests; confirmation, review races and Arabic mobile are protected', async () => {
+  const active = (await json(await admin.request.get('/api/request-categories'))).categories.find(
+    (c: { isArchived: boolean }) => !c.isArchived,
+  ).id;
+  const create = async (title: string) =>
+    (
+      await json(
+        await owner.request.post(`/api/projects/${project}/requests`, {
+          data: { ...payload(title), categoryId: active },
+        }),
+      )
+    ).request.id;
+  const id = await create(`Submitter deletion ${run}`);
+  await open(owner, `/requests/${id}`);
+  await expect(owner.getByRole('heading', { name: 'Review request', exact: true })).toHaveCount(0);
+  await json(
+    await owner.request.post(`/api/requests/${id}/comments`, { data: { body: 'Disposable test comment' } }),
+  );
+  await json(
+    await owner.request.post(`/api/requests/${id}/attachments`, {
+      multipart: {
+        file: {
+          name: 'submitter-delete.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('test attachment'),
+        },
+      },
+    }),
+  );
+  await open(owner, `/requests/${id}`);
+  await owner.getByRole('button', { name: 'Delete request', exact: true }).click();
+  const dialog = owner.getByRole('dialog');
+  await expect(dialog.locator(':focus')).toHaveAccessibleName('Cancel');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).last().click();
+  expect((await owner.request.get(`/api/requests/${id}`)).status()).toBe(200);
+  // The status is checked again on confirmation, not just when the dialog opens.
+  await owner.getByRole('button', { name: 'Delete request', exact: true }).click();
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'UnderReview' } }));
+  await dialog.getByRole('button', { name: 'Delete request', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('no longer New');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).last().click();
+  for (const status of ['UnderReview', 'Accepted', 'Closed']) {
+    await json(
+      await admin.request.patch(`/api/requests/${id}`, {
+        data: { status, closureReason: 'Completed review' },
+      }),
+    );
+    expect((await owner.request.delete(`/api/requests/${id}`)).status()).toBe(409);
+    await open(owner, `/requests/${id}`);
+    await expect(owner.getByRole('button', { name: 'Delete request', exact: true })).toHaveCount(0);
+  }
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'New' } }));
+  await open(owner, `/requests/${id}`);
+  await owner.setViewportSize({ width: 320, height: 844 });
+  await owner.getByRole('button', { name: 'Language', exact: true }).click();
+  await owner.getByRole('button', { name: ar.requests.deleteRequest, exact: true }).click();
+  await expect(dialog.getByRole('heading', { name: ar.requests.deleteRequest })).toBeVisible();
+  expect((await dialog.boundingBox())!.width).toBeLessThanOrEqual(320);
+  await dialog.getByRole('button', { name: ar.requests.deleteRequest, exact: true }).click();
+  await expect(owner).toHaveURL(`/projects/${project}/requests`);
+  expect((await owner.request.get(`/api/requests/${id}`)).status()).toBe(404);
+  expect(existsSync(`.e2e-storage/requests/${id}`)).toBe(false);
+  await owner.getByRole('button', { name: 'اللغة', exact: true }).click();
+  await expect(owner.locator('html')).toHaveAttribute('lang', 'en');
+  await owner.setViewportSize({ width: 1280, height: 900 });
+  // Simultaneous review/deletion must have one consistent outcome.
+  const racing = await create(`Review deletion race ${run}`);
+  const [reviewed, deleted] = await Promise.all([
+    admin.request.patch(`/api/requests/${racing}`, { data: { status: 'UnderReview' } }),
+    owner.request.delete(`/api/requests/${racing}`),
+  ]);
+  if (deleted.ok()) {
+    expect(reviewed.status()).toBe(404);
+    expect((await owner.request.get(`/api/requests/${racing}`)).status()).toBe(404);
+  } else {
+    expect(deleted.status()).toBe(409);
+    expect(reviewed.status()).toBe(200);
+    expect((await json(await owner.request.get(`/api/requests/${racing}`))).request.status).toBe(
+      'UnderReview',
+    );
+  }
 });
 
 test('submitters edit only their own New requests with history, stale-form and status protection', async () => {
@@ -759,6 +848,7 @@ test('Arabic requests fit mobile; request-only projects cannot be deleted; archi
   expect((await admin.request.delete(`/api/projects/${empty}`)).status()).toBe(409);
   await json(await admin.request.patch(`/api/projects/${project}`, { data: { isArchived: true } }));
   expect((await admin.request.delete(`/api/requests/${otherRequest}`)).status()).toBe(403);
+  expect((await owner.request.delete(`/api/requests/${ownRequest}`)).status()).toBe(403);
   expect(
     (await admin.request.patch(`/api/requests/${ownRequest}`, { data: { status: 'Accepted' } })).status(),
   ).toBe(403);

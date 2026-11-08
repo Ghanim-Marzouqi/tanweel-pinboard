@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const guard = await requireAdmin();
+  const guard = await requireSession();
   if (!guard.ok) return guard.response;
   const { id } = await params;
   try {
@@ -75,6 +75,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       id,
       guard.session.user,
       async (tx, current) => {
+        if (guard.session.user.role !== 'admin') {
+          if (current.createdById !== guard.session.user.id)
+            throw new RequestError(403, 'Only the submitter can delete this request');
+          if (current.status !== 'New')
+            throw new RequestError(409, 'Only New requests can be deleted by their submitter');
+        }
         if (current.taskLinks.length)
           throw new RequestError(409, 'Unlink all tasks before deleting this request');
         await tx.workRequest.delete({ where: { id: current.id } });

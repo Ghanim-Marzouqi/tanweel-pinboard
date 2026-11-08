@@ -96,7 +96,17 @@ export function RequestDetail({
     const result = await sendJson(`/api/requests/${r.id}${path}`, method, body);
     setPending(false);
     if (!result.ok) {
-      setError(result.error);
+      setError(
+        method === 'DELETE' && path === '' && result.status === 409
+          ? t(
+              result.error === 'Unlink all tasks before deleting this request'
+                ? 'deleteLinkedHint'
+                : 'deleteStatusChanged',
+            )
+          : method === 'DELETE' && path === '' && result.status === 403
+            ? t('deleteUnavailable')
+            : result.error,
+      );
       return false;
     }
     if (method === 'DELETE' && path === '') router.push(`/projects/${r.project.id}/requests`);
@@ -524,7 +534,7 @@ export function RequestDetail({
               </div>
             )}
           </section>
-          {isAdmin && !r.project.isArchived && (
+          {!r.project.isArchived && (isAdmin || (r.createdById === userId && r.status === 'New')) && (
             <section className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5">
               <Button
                 variant="secondary"
@@ -539,7 +549,7 @@ export function RequestDetail({
                 {t('deleteRequest')}
               </Button>
               <p className="mt-3 text-xs leading-relaxed text-[color:var(--text-muted)]">
-                {t(r.taskLinks.length ? 'deleteLinkedHint' : 'deleteHint')}
+                {t(r.taskLinks.length ? 'deleteLinkedHint' : isAdmin ? 'deleteHint' : 'submitterDeleteHint')}
               </p>
             </section>
           )}
