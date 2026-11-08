@@ -11,6 +11,11 @@ export const RequestCreateSchema = z.object({
   categoryId: z.uuid(),
   priorityId: z.uuid().nullable().optional(),
 });
+// A complete content edit cannot change ownership, project, status or task links.
+export const RequestEditSchema = RequestCreateSchema.extend({
+  priorityId: z.uuid().nullable(),
+  updatedAt: z.iso.datetime({ offset: true }),
+}).strict();
 export const RequestReviewSchema = z
   .object({
     status: z.enum(REQUEST_STATUSES),

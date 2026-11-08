@@ -579,7 +579,23 @@
     "deleteRequest": "Delete request",
     "deleteHint": "Only requests with no linked tasks can be deleted.",
     "deleteLinkedHint": "Unlink all tasks before deleting this request.",
-    "deleteConfirm": "Permanently delete this request, including its comments, history, and attachments? This cannot be undone."
+    "deleteConfirm": "Permanently delete this request, including its comments, history, and attachments? This cannot be undone.",
+    "editRequest": "Edit request",
+    "saveEdit": "Save changes",
+    "editHint": "You can edit your request while it is New. Editing is locked once review starts.",
+    "editLocked": "Editing is locked because this request is no longer New. Ask an administrator to return it to New if a correction is needed.",
+    "editConflict": "This request has changed or is no longer New. Your changes have not been saved. Copy any text you need, then reopen the request before editing again.",
+    "editUnavailable": "This request cannot be edited. Only its submitter can edit it while it is New and the project is active.",
+    "contentEdited": "Edited: {fields}",
+    "editFields": {
+      "title": "title",
+      "description": "description",
+      "suggestions": "suggestions",
+      "shift": "shift",
+      "occurredAt": "date and time",
+      "categoryId": "category",
+      "priorityId": "priority"
+    }
   },
   "pwa": {
     "install": "Install Pinboard",

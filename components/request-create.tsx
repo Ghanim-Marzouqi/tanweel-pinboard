@@ -16,16 +16,30 @@ export function RequestCreate({
   priorities,
   reporter,
   now,
+  edit: initialEdit,
 }: {
   project: { id: string; name: string };
   categories: { id: string; nameEn: string; nameAr: string }[];
   priorities: { id: string; nameEn: string; nameAr: string }[];
   reporter: string;
   now: string;
+  edit?: {
+    id: string;
+    title: string;
+    description: string;
+    suggestions: string;
+    shift: string;
+    categoryId: string;
+    priorityId: string | null;
+    updatedAt: string;
+  };
 }) {
   const t = useTranslations('requests');
   const locale = useLocale();
   const router = useRouter();
+  // Keep the form's revision paired with its initial values across locale refreshes.
+  const [edit] = useState(initialEdit);
+  const [initialOccurredAt] = useState(() => muscatDateTimeInput(new Date(now)));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -33,17 +47,28 @@ export function RequestCreate({
     const form = new FormData(e.currentTarget);
     setPending(true);
     setError('');
-    const res = await sendJson<{ request: { id: string } }>(`/api/projects/${project.id}/requests`, 'POST', {
-      title: form.get('title'),
-      description: form.get('description'),
-      suggestions: form.get('suggestions'),
-      shift: form.get('shift'),
-      categoryId: form.get('categoryId'),
-      priorityId: form.get('priorityId') || null,
-      occurredAt: new Date(`${form.get('occurredAt')}:00+04:00`).toISOString(),
-    });
+    const res = await sendJson<{ request: { id: string } }>(
+      edit ? `/api/requests/${edit.id}/content` : `/api/projects/${project.id}/requests`,
+      edit ? 'PATCH' : 'POST',
+      {
+        ...(edit ? { updatedAt: edit.updatedAt } : {}),
+        title: form.get('title'),
+        description: form.get('description'),
+        suggestions: form.get('suggestions'),
+        shift: form.get('shift'),
+        categoryId: form.get('categoryId'),
+        priorityId: form.get('priorityId') || null,
+        occurredAt: new Date(`${form.get('occurredAt')}:00+04:00`).toISOString(),
+      },
+    );
     if (!res.ok) {
-      setError(res.error);
+      setError(
+        edit && res.status === 409
+          ? t('editConflict')
+          : edit && res.status === 403
+            ? t('editUnavailable')
+            : res.error,
+      );
       setPending(false);
       return;
     }
@@ -53,7 +78,7 @@ export function RequestCreate({
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Link
-        href={`/projects/${project.id}/requests`}
+        href={edit ? `/requests/${edit.id}` : `/projects/${project.id}/requests`}
         className="inline-flex items-center gap-2 text-sm text-[color:var(--text-muted)] hover:text-[color:var(--accent-strong)]"
       >
         <ArrowLeft size={16} aria-hidden className="rtl:rotate-180" />
@@ -62,8 +87,8 @@ export function RequestCreate({
         </span>
       </Link>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('new')}</h1>
-        <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t('createHint')}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t(edit ? 'editRequest' : 'new')}</h1>
+        <p className="mt-2 text-sm text-[color:var(--text-muted)]">{t(edit ? 'editHint' : 'createHint')}</p>
       </header>
       <form onSubmit={submit} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_250px]">
         <fieldset
@@ -80,6 +105,7 @@ export function RequestCreate({
               <Input
                 dir="auto"
                 name="title"
+                defaultValue={edit?.title}
                 required
                 maxLength={200}
                 placeholder={t('titlePlaceholder')}
@@ -89,7 +115,12 @@ export function RequestCreate({
             <div className="space-y-5">
               <label className="block min-w-0 space-y-2">
                 <span className="text-sm font-medium">{t('category')}</span>
-                <Select aria-label={t('category')} name="categoryId" required defaultValue="">
+                <Select
+                  aria-label={t('category')}
+                  name="categoryId"
+                  required
+                  defaultValue={edit?.categoryId ?? ''}
+                >
                   <option value="" disabled>
                     {t('chooseCategory')}
                   </option>
@@ -102,7 +133,7 @@ export function RequestCreate({
               </label>
               <label className="block min-w-0 space-y-2">
                 <span className="text-sm font-medium">{t('priority')}</span>
-                <Select aria-label={t('priority')} name="priorityId" defaultValue="">
+                <Select aria-label={t('priority')} name="priorityId" defaultValue={edit?.priorityId ?? ''}>
                   <option value="">{t('noPriority')}</option>
                   {priorities.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -117,6 +148,8 @@ export function RequestCreate({
               <Textarea
                 dir="auto"
                 name="description"
+                aria-label={t('description')}
+                defaultValue={edit?.description}
                 required
                 rows={6}
                 maxLength={20000}
@@ -138,7 +171,7 @@ export function RequestCreate({
                   type="datetime-local"
                   className="request-date-field"
                   required
-                  defaultValue={muscatDateTimeInput(new Date(now))}
+                  defaultValue={initialOccurredAt}
                 />
               </label>
               <label className="block min-w-0 space-y-2">
@@ -146,6 +179,7 @@ export function RequestCreate({
                 <Input
                   dir="auto"
                   name="shift"
+                  defaultValue={edit?.shift}
                   maxLength={120}
                   placeholder={t('shiftPlaceholder')}
                   className="request-field"
@@ -157,6 +191,8 @@ export function RequestCreate({
               <Textarea
                 dir="auto"
                 name="suggestions"
+                aria-label={t('suggestions')}
+                defaultValue={edit?.suggestions}
                 rows={3}
                 maxLength={10000}
                 placeholder={t('suggestionsPlaceholder')}
@@ -177,12 +213,14 @@ export function RequestCreate({
               <Button
                 variant="secondary"
                 disabled={pending}
-                onClick={() => router.push(`/projects/${project.id}/requests`)}
+                onClick={() =>
+                  router.push(edit ? `/requests/${edit.id}` : `/projects/${project.id}/requests`)
+                }
               >
                 {t('cancel')}
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? t('saving') : t('submit')}
+                {pending ? t('saving') : t(edit ? 'saveEdit' : 'submit')}
                 <ArrowRight size={16} aria-hidden className="rtl:rotate-180" />
               </Button>
             </div>
@@ -208,23 +246,25 @@ export function RequestCreate({
             <h2 className="text-sm font-semibold">{t('privateRequest')}</h2>
             <p className="mt-2 text-xs leading-relaxed text-[color:var(--text-muted)]">{t('privacyHint')}</p>
           </div>
-          <div>
-            <h2 className="mb-4 text-sm font-semibold">{t('whatNext')}</h2>
-            <ul className="space-y-4 text-xs leading-relaxed text-[color:var(--text-muted)]">
-              <li className="flex gap-2.5">
-                <CheckCheck size={17} className="mt-0.5 shrink-0" aria-hidden />
-                <span>{t('nextReview')}</span>
-              </li>
-              <li className="flex gap-2.5">
-                <Link2 size={17} className="mt-0.5 shrink-0" aria-hidden />
-                <span>{t('nextLink')}</span>
-              </li>
-              <li className="flex gap-2.5">
-                <Paperclip size={17} className="mt-0.5 shrink-0" aria-hidden />
-                <span>{t('attachmentAfterCreate')}</span>
-              </li>
-            </ul>
-          </div>
+          {!edit && (
+            <div>
+              <h2 className="mb-4 text-sm font-semibold">{t('whatNext')}</h2>
+              <ul className="space-y-4 text-xs leading-relaxed text-[color:var(--text-muted)]">
+                <li className="flex gap-2.5">
+                  <CheckCheck size={17} className="mt-0.5 shrink-0" aria-hidden />
+                  <span>{t('nextReview')}</span>
+                </li>
+                <li className="flex gap-2.5">
+                  <Link2 size={17} className="mt-0.5 shrink-0" aria-hidden />
+                  <span>{t('nextLink')}</span>
+                </li>
+                <li className="flex gap-2.5">
+                  <Paperclip size={17} className="mt-0.5 shrink-0" aria-hidden />
+                  <span>{t('attachmentAfterCreate')}</span>
+                </li>
+              </ul>
+            </div>
+          )}
           {!categories.length && (
             <p
               role="alert"

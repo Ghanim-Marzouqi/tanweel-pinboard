@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
+import { Button, buttonClass } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Paperclip,
   Plus,
+  Pencil,
   Upload,
   Trash2,
   Flag,
@@ -41,6 +42,7 @@ export interface RequestView {
   status: (typeof REQUEST_STATUSES)[number];
   closureReason: string;
   createdAt: string;
+  createdById: string;
   project: { id: string; name: string; isArchived: boolean };
   category: { nameEn: string; nameAr: string };
   priorityId: string | null;
@@ -136,6 +138,12 @@ export function RequestDetail({
   }
   function activity(a: RequestView['activities'][number]) {
     if (a.kind === 'comment') return a.body;
+    if (a.kind === 'edited') {
+      const keys = Object.keys(JSON.parse(a.body));
+      return t('contentEdited', {
+        fields: keys.map((key) => t(`editFields.${key}`)).join(locale === 'ar' ? '، ' : ', '),
+      });
+    }
     if (a.kind === 'priority') {
       const change = JSON.parse(a.body) as { from: RequestView['priority']; to: RequestView['priority'] };
       const label = (p: RequestView['priority']) =>
@@ -164,6 +172,21 @@ export function RequestDetail({
           <span className="font-mono text-sm text-[color:var(--text-faint)]">
             <bdi>#{r.number}</bdi>
           </span>
+          {r.createdById === userId && r.status === 'New' && !r.project.isArchived && (
+            <Link
+              href={`/requests/${r.id}/edit`}
+              aria-label={t('editRequest')}
+              title={t('editRequest')}
+              className={buttonClass({
+                variant: 'secondary',
+                size: 'sm',
+                className: 'ms-auto order-last min-h-11 min-w-11',
+              })}
+            >
+              <Pencil size={16} aria-hidden />
+              <span className="hidden sm:inline">{t('editRequest')}</span>
+            </Link>
+          )}
           <RequestStatusBadge status={r.status} label={t(`statuses.${r.status}`)} />
           <span className="text-sm text-[color:var(--text-muted)]">
             {locale === 'ar' ? r.category.nameAr : r.category.nameEn}
@@ -189,6 +212,11 @@ export function RequestDetail({
           <FormattedDate timeZone="Asia/Muscat" iso={r.createdAt} />
         </div>
       </header>
+      {r.createdById === userId && !r.project.isArchived && (
+        <p className="text-sm text-[color:var(--text-muted)]">
+          {t(r.status === 'New' ? 'editHint' : 'editLocked')}
+        </p>
+      )}
       {r.project.isArchived && (
         <p className="rounded-lg bg-[color:var(--surface-muted)] p-4">{t('archivedProject')}</p>
       )}

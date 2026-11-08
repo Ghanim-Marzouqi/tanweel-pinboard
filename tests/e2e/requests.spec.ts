@@ -478,6 +478,217 @@ test('only admins delete unlinked requests; confirmation, closed requests, files
   await json(await admin.request.delete(`/api/tasks/${task}`));
 });
 
+test('submitters edit only their own New requests with history, stale-form and status protection', async () => {
+  const activeCategory = (
+    await json(
+      await admin.request.post('/api/request-categories', {
+        data: { nameEn: `Editable ${run}`, nameAr: `قابل للتعديل ${run}` },
+      }),
+    )
+  ).category.id;
+  const priority = (
+    await json(
+      await admin.request.post('/api/request-priorities', {
+        data: { nameEn: `Edit priority ${run}`, nameAr: `أولوية التعديل ${run}`, sortOrder: 2 },
+      }),
+    )
+  ).priority.id;
+  const created = (
+    await json(
+      await owner.request.post(`/api/projects/${project}/requests`, {
+        data: { ...payload(`Edit me ${run}`), categoryId: activeCategory, priorityId: priority },
+      }),
+    )
+  ).request;
+  const id = created.id;
+  const editBody = (r: typeof created, title = r.title) => ({
+    title,
+    description: r.description,
+    suggestions: r.suggestions,
+    shift: r.shift,
+    categoryId: r.categoryId,
+    priorityId: r.priorityId,
+    occurredAt: r.occurredAt,
+    updatedAt: r.updatedAt,
+  });
+  const read = async () => (await json(await owner.request.get(`/api/requests/${id}`))).request;
+  for (const [actor, status] of [
+    [colleague, 404],
+    [outsider, 404],
+    [admin, 403],
+  ] as const) {
+    expect(
+      (
+        await actor.request.patch(`/api/requests/${id}/content`, { data: editBody(created, 'Not mine') })
+      ).status(),
+    ).toBe(status);
+  }
+  expect(
+    (
+      await owner.request.patch(`/api/requests/${id}/content`, {
+        data: { ...editBody(created), status: 'Accepted' },
+      })
+    ).status(),
+  ).toBe(400);
+  await open(owner, `/requests/${id}`);
+  await owner.getByRole('link', { name: 'Edit request', exact: true }).click();
+  await expect(owner.getByRole('heading', { name: 'Edit request', exact: true })).toBeVisible();
+  await expect(owner.getByLabel('Request title', { exact: true })).toHaveValue(created.title);
+  await owner.getByLabel('Request title', { exact: true }).fill(`Corrected ${run}`);
+  await owner.getByLabel('Description', { exact: true }).fill('Corrected description');
+  await owner.getByLabel('Date and time (Oman)').fill('2026-11-08T12:30');
+  await owner.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(owner.getByRole('heading', { name: `Corrected ${run}` })).toBeVisible();
+  await expect(owner.getByText('Edited: title, description, date and time', { exact: true })).toBeVisible();
+  let saved = await read();
+  expect(saved).toMatchObject({
+    createdById: ownerId,
+    projectId: project,
+    status: 'New',
+    description: 'Corrected description',
+    occurredAt: '2026-11-08T08:30:00.000Z',
+    number: created.number,
+  });
+  expect(JSON.parse(saved.activities.find((a: { kind: string }) => a.kind === 'edited').body).title).toEqual({
+    from: created.title,
+    to: `Corrected ${run}`,
+  });
+  expect(
+    (
+      await owner.request.patch(`/api/requests/${id}/content`, { data: editBody(created, 'Stale overwrite') })
+    ).status(),
+  ).toBe(409);
+  await json(await owner.request.patch(`/api/requests/${id}/content`, { data: editBody(saved) }));
+  expect((await read()).activities.length).toBe(saved.activities.length);
+  // Existing archived selections remain valid, but cannot be newly assigned.
+  await json(
+    await admin.request.patch(`/api/request-categories/${activeCategory}`, {
+      data: { nameEn: `Editable ${run}`, nameAr: `قابل للتعديل ${run}`, isArchived: true },
+    }),
+  );
+  await json(
+    await admin.request.patch(`/api/request-priorities/${priority}`, {
+      data: {
+        nameEn: `Edit priority ${run}`,
+        nameAr: `أولوية التعديل ${run}`,
+        sortOrder: 2,
+        isArchived: true,
+      },
+    }),
+  );
+  await json(
+    await owner.request.patch(`/api/requests/${id}/content`, {
+      data: editBody(saved, `Archived selection preserved ${run}`),
+    }),
+  );
+  saved = await read();
+  const active = (await json(await admin.request.get('/api/request-categories'))).categories.find(
+    (c: { isArchived: boolean }) => !c.isArchived,
+  ).id;
+  await json(
+    await owner.request.patch(`/api/requests/${id}/content`, {
+      data: { ...editBody(saved), categoryId: active, priorityId: null },
+    }),
+  );
+  saved = await read();
+  expect(
+    (
+      await owner.request.patch(`/api/requests/${id}/content`, {
+        data: { ...editBody(saved), categoryId: activeCategory },
+      })
+    ).status(),
+  ).toBe(400);
+  expect(
+    (
+      await owner.request.patch(`/api/requests/${id}/content`, {
+        data: { ...editBody(saved), priorityId: priority },
+      })
+    ).status(),
+  ).toBe(400);
+  // A locale refresh must not silently advance the revision attached to an unsaved form.
+  await open(owner, `/requests/${id}/edit`);
+  await owner.getByLabel('Request title', { exact: true }).fill('Draft before locale refresh');
+  await json(
+    await owner.request.patch(`/api/requests/${id}/content`, {
+      data: editBody(saved, 'Saved from another tab'),
+    }),
+  );
+  await owner.getByRole('button', { name: 'Language', exact: true }).click();
+  await owner.getByRole('button', { name: ar.requests.saveEdit, exact: true }).click();
+  await expect(owner.getByRole('alert').filter({ hasText: ar.requests.editConflict })).toBeVisible();
+  expect((await read()).title).toBe('Saved from another tab');
+  await owner.getByRole('button', { name: 'اللغة', exact: true }).click();
+  await expect(owner.locator('html')).toHaveAttribute('lang', 'en');
+  // A review begun after the form was opened must reject save without discarding draft text.
+  await open(owner, `/requests/${id}/edit`);
+  await owner.getByLabel('Request title', { exact: true }).fill('Keep this unsaved correction');
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'UnderReview' } }));
+  await owner.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(
+    owner.getByRole('alert').filter({ hasText: 'Your changes have not been saved' }),
+  ).toBeVisible();
+  await expect(owner.getByLabel('Request title', { exact: true })).toHaveValue(
+    'Keep this unsaved correction',
+  );
+  for (const status of ['UnderReview', 'Accepted', 'Closed']) {
+    await json(await admin.request.patch(`/api/requests/${id}`, { data: { status, closureReason: 'Done' } }));
+    const current = await read();
+    expect(
+      (
+        await owner.request.patch(`/api/requests/${id}/content`, {
+          data: editBody(current, 'Forbidden edit'),
+        })
+      ).status(),
+    ).toBe(409);
+    await open(owner, `/requests/${id}/edit`);
+    await expect(owner).toHaveURL(new RegExp(`/requests/${id}$`));
+    await expect(owner.getByRole('link', { name: 'Edit request', exact: true })).toHaveCount(0);
+  }
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'New' } }));
+  saved = await read();
+  // Review and content edits use the same database row lock.
+  const [editing, reviewing] = await Promise.all([
+    owner.request.patch(`/api/requests/${id}/content`, { data: editBody(saved, 'Concurrent correction') }),
+    admin.request.patch(`/api/requests/${id}`, { data: { status: 'UnderReview' } }),
+  ]);
+  expect([200, 409]).toContain(editing.status());
+  expect(reviewing.status()).toBe(200);
+  expect((await read()).status).toBe('UnderReview');
+  await json(await admin.request.patch(`/api/requests/${id}`, { data: { status: 'New' } }));
+  await open(owner, `/requests/${id}/edit`);
+  await owner.getByRole('button', { name: 'Language', exact: true }).click();
+  for (const width of [320, 390]) {
+    await owner.setViewportSize({ width, height: 844 });
+    await expect(owner.getByRole('heading', { name: ar.requests.editRequest, exact: true })).toBeVisible();
+    expect(await owner.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await owner.getByLabel(ar.requests.title, { exact: true }).fill('تصحيح عنوان الطلب');
+  await owner.getByRole('button', { name: ar.requests.saveEdit, exact: true }).click();
+  await expect(owner.getByRole('heading', { name: 'تصحيح عنوان الطلب' })).toBeVisible();
+  await owner.getByRole('button', { name: 'اللغة', exact: true }).click();
+  await expect(owner.locator('html')).toHaveAttribute('lang', 'en');
+  await owner.setViewportSize({ width: 1280, height: 900 });
+  // An archived project also blocks a New request, including its direct edit URL.
+  const isolated = (
+    await json(await owner.request.post('/api/projects', { data: { name: `Edit archive ${run}` } }))
+  ).project.id;
+  const archived = (
+    await json(
+      await owner.request.post(`/api/projects/${isolated}/requests`, {
+        data: { ...payload('Archived edit'), categoryId: active },
+      }),
+    )
+  ).request;
+  await json(await owner.request.patch(`/api/projects/${isolated}`, { data: { isArchived: true } }));
+  expect(
+    (
+      await owner.request.patch(`/api/requests/${archived.id}/content`, {
+        data: editBody(archived, 'Blocked'),
+      })
+    ).status(),
+  ).toBe(403);
+});
+
 test('Arabic requests fit mobile; request-only projects cannot be deleted; archived projects are read-only', async () => {
   await owner.setViewportSize({ width: 390, height: 844 });
   await open(owner, `/requests/${ownRequest}`);
