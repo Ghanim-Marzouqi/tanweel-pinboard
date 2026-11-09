@@ -1,7 +1,7 @@
 import ar from '../../messages/ar.json';
 import { test, expect, type Page, type APIResponse } from '@playwright/test';
 import { existsSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { E2E_ADMIN } from './credentials';
 import { signIn, open } from './helpers';
 
@@ -118,6 +118,65 @@ test('member submits a project request; Requests appears before Tasks; uploads a
   expect(
     await (await owner.request.get(`/api/requests/${ownRequest}/attachments/${attachment}/download`)).text(),
   ).toBe('private evidence');
+});
+
+test('request and task uploads accept 50 MB videos and reject larger or unsupported files', async () => {
+  test.setTimeout(120_000);
+  const maxBytes = 50 * 1024 * 1024;
+  // Exercise the real production Next server, including auth proxy and multipart overhead.
+  for (const base of [`/api/requests/${ownRequest}`, `/api/tasks/${task}`]) {
+    const largeVideo = Buffer.alloc(maxBytes, 0x61);
+    const result = await owner.request.post(`${base}/attachments`, {
+      multipart: { file: { name: 'boundary.mp4', mimeType: 'video/mp4', buffer: largeVideo } },
+    });
+    expect(result.status(), await result.text()).toBe(201);
+    const { attachment: uploaded } = await result.json();
+    expect(uploaded.sizeBytes).toBe(maxBytes);
+    const download = await owner.request.get(`${base}/attachments/${uploaded.id}/download`);
+    expect(download.status()).toBe(200);
+    expect(download.headers()['content-type']).toBe('video/mp4');
+    expect(createHash('sha256').update(await download.body()).digest('hex')).toBe(
+      createHash('sha256').update(largeVideo).digest('hex'),
+    );
+    await download.dispose();
+    expect((await outsider.request.get(`${base}/attachments/${uploaded.id}/download`)).status()).toBe(404);
+    expect((await owner.request.delete(`${base}/attachments/${uploaded.id}`)).ok()).toBeTruthy();
+
+    const oversized = await owner.request.post(`${base}/attachments`, {
+      multipart: {
+        file: { name: 'oversized.mp4', mimeType: 'video/mp4', buffer: Buffer.alloc(maxBytes + 1) },
+      },
+    });
+    expect(oversized.status()).toBe(400);
+    expect((await oversized.json()).error).toBe('File too large (max 50 MB)');
+    const unsupported = await owner.request.post(`${base}/attachments`, {
+      multipart: {
+        file: { name: 'script.html', mimeType: 'text/html', buffer: Buffer.from('<script></script>') },
+      },
+    });
+    expect(unsupported.status()).toBe(400);
+    expect((await unsupported.json()).error).toBe('Unsupported file type');
+    for (const [name, mimeType] of [
+      ['phone.mov', 'video/quicktime'],
+      ['recording.webm', 'video/webm'],
+    ]) {
+      const video = await json(
+        await owner.request.post(`${base}/attachments`, {
+          multipart: { file: { name, mimeType, buffer: Buffer.from('video format fixture') } },
+        }),
+      );
+      expect((await owner.request.delete(`${base}/attachments/${video.attachment.id}`)).ok()).toBeTruthy();
+    }
+  }
+  await open(owner, `/requests/${ownRequest}`);
+  await expect(owner.getByText('Images, videos and documents · Up to 50 MB per file')).toBeVisible();
+  await expect(owner.getByLabel('Add a file')).toHaveAttribute('accept', /video\/mp4/);
+  await owner.getByLabel('Add a file').setInputFiles({
+    name: 'screen-recording.webm',
+    mimeType: 'video/webm',
+    buffer: Buffer.from('browser upload fixture'),
+  });
+  await expect(owner.getByRole('link', { name: /screen-recording.webm/ })).toBeVisible();
 });
 
 test('privacy covers owners, lists, detail, comments, files, outsiders and backlinks', async () => {

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const file = form?.get('file');
   if (!(file instanceof File)) return badRequest('Missing file');
   if (file.size === 0) return badRequest('Empty file');
-  if (file.size > MAX_UPLOAD_BYTES) return badRequest('File too large (max 10 MB)');
+  if (file.size > MAX_UPLOAD_BYTES) return badRequest('File too large (max 50 MB)');
   if (!ALLOWED_UPLOAD_TYPES.includes(file.type as (typeof ALLOWED_UPLOAD_TYPES)[number])) {
     return badRequest('Unsupported file type');
   }

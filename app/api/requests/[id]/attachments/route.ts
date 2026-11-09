@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof File) || !file.size) return badRequest('Choose a nonempty file');
-  if (file.size > MAX_UPLOAD_BYTES) return badRequest('File too large (max 10 MB)');
+  if (file.size > MAX_UPLOAD_BYTES) return badRequest('File too large (max 50 MB)');
   if (!ALLOWED_UPLOAD_TYPES.includes(file.type as (typeof ALLOWED_UPLOAD_TYPES)[number]))
     return badRequest('Unsupported file type');
   const storageKey = `requests/${id}/${randomUUID()}${safeExtension(file.name, file.type)}`;

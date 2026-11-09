@@ -5,6 +5,8 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Allow a 50 MiB file plus multipart headers through the auth proxy.
+  experimental: { proxyClientMaxBodySize: '55mb' },
   async headers() {
     return [
       {

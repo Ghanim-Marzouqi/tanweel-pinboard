@@ -166,6 +166,9 @@ export const ALLOWED_UPLOAD_TYPES = [
   'image/jpeg',
   'image/webp',
   'image/gif',
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
@@ -175,4 +178,4 @@ export const ALLOWED_UPLOAD_TYPES = [
   'text/plain',
 ] as const;
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MiB (displayed as MB)

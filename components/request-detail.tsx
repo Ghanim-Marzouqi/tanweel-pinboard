@@ -27,8 +27,9 @@ import { RequestStatusBadge } from '@/components/request-status-badge';
 import { FormattedDate } from '@/components/formatted-date';
 import { sendJson } from '@/lib/client-api';
 import { REQUEST_STATUSES } from '@/lib/request-validation';
-import { TASK_PRIORITIES, type TaskStatus } from '@/lib/validation';
+import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES, TASK_PRIORITIES, type TaskStatus } from '@/lib/validation';
 import { StatusBadge } from '@/components/status-badge';
+import { formatBytes } from '@/lib/utils';
 import { PRIORITY_KEY } from '@/lib/status';
 
 export interface RequestView {
@@ -116,6 +117,18 @@ export function RequestDetail({
   async function upload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (
+      file.size > MAX_UPLOAD_BYTES ||
+      !ALLOWED_UPLOAD_TYPES.includes(file.type as (typeof ALLOWED_UPLOAD_TYPES)[number])
+    ) {
+      setError(
+        taskT(file.size > MAX_UPLOAD_BYTES ? 'attachments.tooLarge' : 'attachments.unsupportedType', {
+          name: file.name,
+        }),
+      );
+      e.target.value = '';
+      return;
+    }
     setPending(true);
     setError('');
     try {
@@ -295,6 +308,7 @@ export function RequestDetail({
                   <input
                     aria-label={t('upload')}
                     type="file"
+                    accept={ALLOWED_UPLOAD_TYPES.join(',')}
                     className="sr-only"
                     onChange={upload}
                     disabled={pending}
@@ -319,7 +333,7 @@ export function RequestDetail({
                   >
                     <bdi>{a.fileName}</bdi>{' '}
                     <span className="text-sm text-[color:var(--text-muted)]">
-                      <bdi dir="ltr">({Math.ceil(a.sizeBytes / 1024)} KB)</bdi>
+                      <bdi dir="ltr">({formatBytes(a.sizeBytes)})</bdi>
                     </span>
                   </a>
                   {writable && (isAdmin || a.uploadedById === userId) && (

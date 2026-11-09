@@ -52,8 +52,8 @@ export function TaskAttachments({
   const [, startTransition] = useTransition();
 
   function validateFile(f: File): string | null {
-    if (f.size > MAX) return `${f.name}: too large (max 10 MB)`;
-    if (!ALLOWED.includes(f.type as (typeof ALLOWED)[number])) return `${f.name}: unsupported type`;
+    if (f.size > MAX) return t('tooLarge', { name: f.name });
+    if (!ALLOWED.includes(f.type as (typeof ALLOWED)[number])) return t('unsupportedType', { name: f.name });
     return null;
   }
 
