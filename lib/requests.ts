@@ -17,7 +17,7 @@ export const requestInclude = {
     orderBy: { createdAt: 'asc' as const },
   },
   attachments: {
-    select: { id: true, fileName: true, sizeBytes: true, uploadedById: true },
+    select: { id: true, fileName: true, contentType: true, sizeBytes: true, uploadedById: true },
     orderBy: { uploadedAt: 'asc' as const },
   },
   activities: { include: { actor: { select: { name: true } } }, orderBy: { createdAt: 'asc' as const } },

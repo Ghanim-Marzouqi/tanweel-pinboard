@@ -135,9 +135,11 @@ test('request and task uploads accept 50 MB videos and reject larger or unsuppor
     const download = await owner.request.get(`${base}/attachments/${uploaded.id}/download`);
     expect(download.status()).toBe(200);
     expect(download.headers()['content-type']).toBe('video/mp4');
-    expect(createHash('sha256').update(await download.body()).digest('hex')).toBe(
-      createHash('sha256').update(largeVideo).digest('hex'),
-    );
+    expect(
+      createHash('sha256')
+        .update(await download.body())
+        .digest('hex'),
+    ).toBe(createHash('sha256').update(largeVideo).digest('hex'));
     await download.dispose();
     expect((await outsider.request.get(`${base}/attachments/${uploaded.id}/download`)).status()).toBe(404);
     expect((await owner.request.delete(`${base}/attachments/${uploaded.id}`)).ok()).toBeTruthy();
@@ -199,6 +201,19 @@ test('privacy covers owners, lists, detail, comments, files, outsiders and backl
   ).toBe(404);
   expect(
     (await colleague.request.get(`/api/requests/${ownRequest}/attachments/${attachment}/download`)).status(),
+  ).toBe(404);
+  expect(
+    (
+      await colleague.request.get(
+        `/api/requests/${ownRequest}/attachments/${attachment}/download?preview=1`,
+        { headers: { Range: 'bytes=0-3' } },
+      )
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await outsider.request.head(`/api/requests/${ownRequest}/attachments/${attachment}/download?preview=1`)
+    ).status(),
   ).toBe(404);
   expect((await outsider.request.get(`/api/projects/${project}/requests`)).status()).toBe(404);
   expect(

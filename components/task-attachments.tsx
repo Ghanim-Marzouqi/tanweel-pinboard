@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSession } from 'next-auth/react';
-import { Paperclip, Upload, X, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
-import { buttonClass } from '@/components/ui/button';
+import { Paperclip, Upload, X, Trash2 } from 'lucide-react';
+import { AttachmentPreview } from '@/components/attachment-preview';
 import { Label } from '@/components/ui/label';
 import { useConfirm } from '@/components/confirm-dialog';
 import { useToast } from '@/components/toast';
@@ -218,32 +218,10 @@ function ExistingAttachmentRow({
   disabled: boolean;
 }) {
   const t = useTranslations('tasks.attachments');
-  const isImage = attachment.contentType.startsWith('image/');
-  const Icon = isImage ? ImageIcon : FileText;
-  const downloadUrl = `/api/tasks/${taskId}/attachments/${attachment.id}/download`;
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2">
-      <Icon size={18} className="text-[color:var(--accent)] shrink-0" />
-      <div className="min-w-0 flex-1">
-        <a
-          href={downloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block truncate text-sm font-medium text-[color:var(--text)] hover:text-[color:var(--accent)]"
-        >
-          {attachment.fileName}
-        </a>
-        <div className="text-xs text-[color:var(--text-faint)]">{formatBytes(attachment.sizeBytes)}</div>
-      </div>
-      <a
-        href={downloadUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={buttonClass({ variant: 'secondary', size: 'sm' })}
-      >
-        {t('open')}
-      </a>
+      <AttachmentPreview attachment={attachment} baseUrl={`/api/tasks/${taskId}/attachments`} />
       {onRemove && (
         <button
           type="button"

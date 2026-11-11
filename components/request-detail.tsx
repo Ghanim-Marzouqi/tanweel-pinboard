@@ -29,7 +29,7 @@ import { sendJson } from '@/lib/client-api';
 import { REQUEST_STATUSES } from '@/lib/request-validation';
 import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES, TASK_PRIORITIES, type TaskStatus } from '@/lib/validation';
 import { StatusBadge } from '@/components/status-badge';
-import { formatBytes } from '@/lib/utils';
+import { AttachmentPreview } from '@/components/attachment-preview';
 import { PRIORITY_KEY } from '@/lib/status';
 
 export interface RequestView {
@@ -50,7 +50,13 @@ export interface RequestView {
   priority: { nameEn: string; nameAr: string } | null;
   createdBy: { name: string };
   taskLinks: { task: { id: string; title: string; status: string } }[];
-  attachments: { id: string; fileName: string; sizeBytes: number; uploadedById: string }[];
+  attachments: {
+    id: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    uploadedById: string;
+  }[];
   activities: { id: string; kind: string; body: string; createdAt: string; actor: { name: string } }[];
 }
 function escaped(text: string) {
@@ -327,15 +333,7 @@ export function RequestDetail({
                   key={a.id}
                   className="flex items-center justify-between gap-3 rounded-lg bg-[color:var(--surface-muted)] px-3 py-2.5"
                 >
-                  <a
-                    href={`/api/requests/${r.id}/attachments/${a.id}/download`}
-                    className="min-w-0 break-all text-[color:var(--accent)]"
-                  >
-                    <bdi>{a.fileName}</bdi>{' '}
-                    <span className="text-sm text-[color:var(--text-muted)]">
-                      <bdi dir="ltr">({formatBytes(a.sizeBytes)})</bdi>
-                    </span>
-                  </a>
+                  <AttachmentPreview attachment={a} baseUrl={`/api/requests/${r.id}/attachments`} />
                   {writable && (isAdmin || a.uploadedById === userId) && (
                     <Button
                       variant="ghost"

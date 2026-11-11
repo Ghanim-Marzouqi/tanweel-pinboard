@@ -285,3 +285,8 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
 }
+
+/* Shared file viewer: full usable width on phones, contained media and long filenames. */
+.attachment-preview-dialog { width: min(64rem, calc(100vw - 1rem)); max-height: calc(100dvh - 1rem); }
+.attachment-preview-dialog h2 { overflow-wrap: anywhere; unicode-bidi: plaintext; }
+@media (max-width: 639px) { .attachment-preview-dialog > div { padding: 1rem; } }

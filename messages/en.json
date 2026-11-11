@@ -110,7 +110,7 @@
     },
     "attachments": {
       "drop": "Drop files here or click to upload",
-      "hint": "Up to 50 MB per file. Images, videos (MP4, MOV, WebM), PDF, Office documents, CSV, and text.",
+      "hint": "Up to 50 MB per file. Images, videos (MP4, MOV, WebM), audio, PDF, Office documents, CSV, and text.",
       "tooLarge": "{name}: too large (max 50 MB)",
       "unsupportedType": "{name}: unsupported file type",
       "uploading": "Uploading {name}…",
@@ -613,5 +613,26 @@
     "onlineHint": "Use your existing Pinboard account. An internet connection is required to view and save work.",
     "offline": "You’re offline. Reconnect before saving changes.",
     "close": "Got it"
+  },
+  "attachmentPreview": {
+    "preview": "Preview",
+    "download": "Download",
+    "private": "Private preview",
+    "loading": "Loading preview…",
+    "unsupported": "This file format cannot be previewed here. You can download it and open it in its original application.",
+    "failed": "The preview could not be opened. The file may be damaged, password-protected, or use a format your browser cannot play. You can still download it.",
+    "officeLimit": "Word and Excel previews support files up to 10 MB. Download this larger file to open it.",
+    "wordNote": "Text preview of the Word document. Original formatting and embedded images are available in the downloaded file.",
+    "sheetNote": "Values preview of the workbook. Charts, formatting and live formula calculations are not shown.",
+    "truncated": "Showing the beginning of this file. Download it for the complete contents.",
+    "sheetLimit": "Preview limited to 30 sheets, 200 rows and 30 columns per sheet; long cells may be shortened. Download for the complete workbook.",
+    "empty": "No content to display.",
+    "sheet": "Worksheet",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "pageOf": "Page {page} of {total}",
+    "pdfPage": "PDF page"
   }
 }

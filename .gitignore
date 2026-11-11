@@ -52,3 +52,6 @@ next-env.d.ts
 /.e2e-storage/
 /.mail/
 /.e2e-mail/
+
+# Locally hosted PDF.js assets generated before dev/build
+/public/preview/

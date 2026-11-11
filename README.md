@@ -286,3 +286,12 @@ Replaces the Vikunja instance at tasks.tanweel.om, kept deliberately simple:
 4. **Go live — completed 29 October 2026:** Pinboard serves HTTPS, real email and administrator sign-in are verified, nightly database/uploads backups and restore tests are in place, logs are bounded, and tasks.tanweel.om redirects to Pinboard after approved Vikunja retirement.
 
 Dates use Muscat time and weeks start on Sunday.
+
+### Attachment previews
+
+Click a filename or the eye icon on Requests or Tasks to open its private in-page preview. Images (PNG/JPEG/WebP/GIF), browser-compatible MP4/MOV/WebM videos, audio (MP3/M4A/WAV/OGG/WebM), PDF, plain text and CSV are supported. PDF has page navigation and zoom; videos support byte-range seeking. Download remains an explicit option in the viewer.
+
+DOCX is a text-only preview and XLSX shows worksheet values, without original formatting, embedded images/charts or formula recalculation. Office previews are capped at 10 MiB, 30 sheets, 200 rows and 30 columns per sheet, with bounded cell/text output, ZIP expansion checks and a terminable 20-second browser worker. Plain text previews show the first 256 KiB. The upload limit remains 50 MiB. Legacy DOC/XLS, password-protected/corrupt files and unsupported media codecs show a download fallback; the UI describes these limits.
+
+All preview bytes use the existing attachment authorization for GET/HEAD, including Range requests. Responses are private/no-store and same-origin; uploaded HTML/SVG is never rendered. PDF.js, its worker/fonts and the document parsers are hosted locally, with no Google/Microsoft viewer or external file transmission. `npm run dev`/`npm run build` generate the versioned PDF.js assets in ignored `public/preview/`; keep the dependency version and assets together. No migration or proxy change is required for this release.
+

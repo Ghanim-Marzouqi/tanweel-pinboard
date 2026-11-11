@@ -1,0 +1,1 @@
+Synthetic local test fixtures only; no customer data. The MP4 is a two-second solid purple H.264 clip, WAV is a one-second generated tone, PNG is a single pixel, and PDF has two plain-text pages. DOCX/XLSX contain test text (including inert script-like strings to verify escaping). The legacy DOC and corrupt PDF deliberately test fallback behavior.
