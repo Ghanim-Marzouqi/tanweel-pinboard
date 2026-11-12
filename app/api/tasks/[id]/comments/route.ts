@@ -1,3 +1,4 @@
+import { notifyTaskInApp } from '@/lib/notifications';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession, badRequest, notFound, forbidden, findVisibleTask } from '@/lib/api-auth';
@@ -37,13 +38,20 @@ export async function POST(req: NextRequest, { params }: Params) {
   const parsed = CommentCreateSchema.safeParse(json);
   if (!parsed.success) return badRequest('Invalid body', parsed.error.issues);
 
-  const comment = await prisma.taskComment.create({
-    data: {
-      taskId: id,
-      body: parsed.data.body,
-      authorId: guard.session.user.id,
-    },
-    include: COMMENT_INCLUDE,
+  const comment = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM tasks WHERE id = ${id}::uuid FOR UPDATE`;
+    const current = await tx.task.findUniqueOrThrow({ where: { id } });
+    const comment = await tx.taskComment.create({
+      data: { taskId: id, body: parsed.data.body, authorId: guard.session.user.id },
+      include: COMMENT_INCLUDE,
+    });
+    await notifyTaskInApp(
+      tx,
+      current,
+      { actorId: guard.session.user.id, kind: 'TaskComment', eventKey: `task-comment:${comment.id}` },
+      comment.body,
+    );
+    return comment;
   });
   await notifySafely(notifyComment(id, comment.body, guard.session.user));
   return NextResponse.json({ comment }, { status: 201 });

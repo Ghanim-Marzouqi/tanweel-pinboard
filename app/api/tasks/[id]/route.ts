@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { notifyTaskInApp } from '@/lib/notifications';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { RequestError, requestErrorResponse } from '@/lib/requests';
@@ -80,7 +82,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
       if (projectId !== existing.project.id && (await tx.requestTaskLink.count({ where: { taskId: id } }))) {
         throw new RequestError(409, 'Ask an admin to unlink requests before moving this task');
       }
-      return tx.task.update({
+      const current = await tx.task.findUniqueOrThrow({ where: { id } });
+      const updated = await tx.task.update({
         where: { id },
         data: {
           ...fields,
@@ -90,6 +93,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
           ...(projectId !== existing.project.id ? { projectId } : {}),
         },
       });
+      if (updated.status !== current.status)
+        await notifyTaskInApp(tx, updated, {
+          actorId: guard.session.user.id,
+          kind: 'TaskStatus',
+          eventKey: `task-status:${randomUUID()}`,
+          fromStatus: current.status,
+          toStatus: updated.status,
+        });
+      return updated;
     });
   } catch (e) {
     return requestErrorResponse(e);

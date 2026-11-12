@@ -50,16 +50,18 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  projectsOwned      Project[]
-  memberships        ProjectMember[]
-  tasksCreated       Task[]               @relation("TaskCreator")
-  tasksAssigned      Task[]               @relation("TaskAssignee")
-  comments           TaskComment[]
-  attachments        TaskAttachment[]
-  passwordResets     PasswordResetToken[]
-  requests           WorkRequest[]
-  requestActivities  RequestActivity[]
-  requestAttachments RequestAttachment[]
+  projectsOwned         Project[]
+  memberships           ProjectMember[]
+  tasksCreated          Task[]               @relation("TaskCreator")
+  tasksAssigned         Task[]               @relation("TaskAssignee")
+  comments              TaskComment[]
+  attachments           TaskAttachment[]
+  passwordResets        PasswordResetToken[]
+  requests              WorkRequest[]
+  requestActivities     RequestActivity[]
+  requestAttachments    RequestAttachment[]
+  notifications         Notification[]       @relation("NotificationRecipient")
+  notificationsAuthored Notification[]       @relation("NotificationActor")
 
   @@map("users")
 }
@@ -174,6 +176,7 @@ model Task {
   attachments     TaskAttachment[]
   comments        TaskComment[]
   requestLinks    RequestTaskLink[]
+  notifications   Notification[]
 
   @@index([projectId, status])
   @@index([projectId, dueDate])
@@ -266,6 +269,7 @@ model WorkRequest {
   activities    RequestActivity[]
   attachments   RequestAttachment[]
   taskLinks     RequestTaskLink[]
+  notifications Notification[]
 
   @@index([projectId, createdById, createdAt])
   @@index([projectId, status, createdAt])
@@ -313,4 +317,36 @@ model RequestAttachment {
 
   @@index([requestId])
   @@map("request_attachments")
+}
+
+enum NotificationKind {
+  RequestComment
+  RequestStatus
+  TaskComment
+  TaskStatus
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  recipientId String           @db.Uuid
+  actorId     String?          @db.Uuid
+  requestId   String?          @db.Uuid
+  taskId      String?          @db.Uuid
+  kind        NotificationKind
+  eventKey    String           @db.VarChar(100)
+  fromStatus  String?          @db.VarChar(30)
+  toStatus    String?          @db.VarChar(30)
+  createdAt   DateTime         @default(now())
+  readAt      DateTime?
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  request     WorkRequest?     @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, eventKey])
+  @@index([recipientId, readAt, createdAt])
+  @@index([recipientId, createdAt, id])
+  @@index([requestId])
+  @@index([taskId])
+  @@map("notifications")
 }

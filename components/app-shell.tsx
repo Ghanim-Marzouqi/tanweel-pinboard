@@ -17,6 +17,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/notification-bell';
 import { PwaInstall } from '@/components/pwa-install';
 import { BrandMark } from '@/components/brand-mark';
 import { LocaleToggle } from '@/components/locale-toggle';
@@ -82,6 +83,7 @@ export function AppShell({ user, projects, minimal = false, children }: Props) {
               </span>
               <RoleBadge role={user.role} />
             </Link>
+            {!minimal && <NotificationBell />}
             <LocaleToggle compact />
             <SignOutButton />
           </div>

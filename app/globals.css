@@ -290,3 +290,6 @@ body {
 .attachment-preview-dialog { width: min(64rem, calc(100vw - 1rem)); max-height: calc(100dvh - 1rem); }
 .attachment-preview-dialog h2 { overflow-wrap: anywhere; unicode-bidi: plaintext; }
 @media (max-width: 639px) { .attachment-preview-dialog > div { padding: 1rem; } }
+
+.notification-dialog { width: min(38rem, calc(100vw - 1rem)); max-height: calc(100dvh - 1rem); }
+@media (max-width: 639px) { .notification-dialog > div { padding: 1rem; } }

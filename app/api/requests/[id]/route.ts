@@ -1,3 +1,4 @@
+import { notifyRequestInApp } from '@/lib/notifications';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSession, requireAdmin, notFound, badRequest } from '@/lib/api-auth';
 import {
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           });
         }
         if (current.status !== parsed.data.status || current.closureReason !== closureReason) {
-          await tx.requestActivity.create({
+          const activity = await tx.requestActivity.create({
             data: {
               requestId: current.id,
               actorId: guard.session.user.id,
@@ -51,6 +52,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               body: JSON.stringify({ from: current.status, to: parsed.data.status, reason: closureReason }),
             },
           });
+          if (current.status !== parsed.data.status)
+            await notifyRequestInApp(tx, current, {
+              actorId: guard.session.user.id,
+              kind: 'RequestStatus',
+              eventKey: `request-status:${activity.id}`,
+              fromStatus: current.status,
+              toStatus: parsed.data.status,
+            });
         }
         return tx.workRequest.update({
           where: { id: current.id },

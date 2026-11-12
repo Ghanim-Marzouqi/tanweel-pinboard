@@ -634,5 +634,25 @@
     "zoomOut": "Zoom out",
     "pageOf": "Page {page} of {total}",
     "pdfPage": "PDF page"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "bell": "Notifications: {count} unread",
+    "subtitle": "Comments and status updates for your requests and tasks.",
+    "unread": "{count} unread",
+    "refresh": "Refresh notifications",
+    "readAll": "Mark all as read",
+    "failed": "Could not update notifications. Please refresh and try again.",
+    "empty": "You’re all caught up",
+    "emptyHint": "New comments and status changes will appear here.",
+    "new": "Unread",
+    "loading": "Loading notifications…",
+    "more": "Show older notifications",
+    "someone": "Someone",
+    "transition": "{from} → {to}",
+    "RequestComment": "{actor} commented on a request",
+    "RequestStatus": "{actor} changed the request status",
+    "TaskComment": "{actor} commented on a task",
+    "TaskStatus": "{actor} changed the task status"
   }
 }
